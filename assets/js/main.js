@@ -1,6 +1,7 @@
 // Validación visual del formulario y feedback de envío
 document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('contactForm').addEventListener('submit', function(e) {
+        // Solo prevenimos el envío del formulario inicialmente para validar
         e.preventDefault();
         let hasError = false;
         const name = document.getElementById('name');
@@ -29,12 +30,14 @@ document.addEventListener('DOMContentLoaded', function() {
             email.classList.add('input-error');
             hasError = true;
         }
+
         if (hasError) {
-            e.preventDefault();
+            // Si hay errores, no permitimos el envío del formulario
+            return false;
+        } else {
+            // Si no hay errores, permitimos que el formulario se envíe normalmente
+            // lo que hará que el navegador redirija a la página especificada en el atributo action
+            this.submit();
         }
-        document.getElementById('formSuccess').innerText = '¡Gracias! Tu mensaje fue enviado. Te contactaremos pronto.';
-        document.getElementById('formSuccess').classList.remove('hidden');
-        this.reset();
-        setTimeout(() => { document.getElementById('formSuccess').classList.add('hidden'); }, 3500);
     });
 });
