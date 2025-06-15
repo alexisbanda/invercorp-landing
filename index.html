@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>INVERCOP Semillas de Fe - Te ayudamos a crecer</title>
+    <link rel="icon" href="assets/images/invercoorp_logo.png" type="image/png">
+    <meta name="description" content="Asesoría gratuita para emprendedores en Ecuador. INVERCOP te ayuda a crecer tu negocio con fe, orden y respaldo financiero. Solicita tu consulta ahora.">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="assets/css/styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <meta property="og:title" content="INVERCOP Semillas de Fe - Te ayudamos a crecer">
+    <meta property="og:description" content="Asesoría gratuita para emprendedores en Ecuador. INVERCOP te ayuda a crecer tu negocio con fe, orden y respaldo financiero.">
+    <meta property="og:image" content="URL_A_TU_LOGO_O_BANNER">
+</head>
+<body class="bg-white text-gray-800">
+
+<!-- Header -->
+<header class="bg-white shadow-sm sticky top-0 z-50">
+    <nav class="container mx-auto px-6 py-4 flex justify-between items-center">
+        <div class="flex items-center">
+            <img src="assets/images/invercoorp_logo.png?auto=compress&w=100&h=100&fit=crop" alt="Logo INVERCOP" class="h-12 w-12 rounded-full object-cover mr-3 border-2 border-[#4CAF50]">
+            <span class="font-bold text-xl text-[#2F4F4F]">INVERCOP</span>
+        </div>
+        <div>
+            <a href="#contacto" class="bg-[#4CAF50] text-white font-semibold px-5 py-2 rounded-full cta-button focus:ring-2 focus:ring-[#4CAF50]" aria-label="Ir a Asesoría Gratuita">
+                Asesoría Gratuita
+            </a>
+        </div>
+    </nav>
+</header>
+
+<!-- Hero Section -->
+<main>
+    <section class="bg-hero relative">
+        <div class="container mx-auto px-6 py-20 md:py-28 relative z-10">
+            <div class="grid md:grid-cols-2 gap-12 items-center">
+                <div class="order-last md:order-first"></div>
+                <div class="bg-white/95 backdrop-blur-sm p-8 rounded-2xl shadow-xl">
+                    <h1 class="text-3xl md:text-4xl font-bold text-[#2F4F4F] leading-tight mb-3 text-center">
+                        La semilla de tu emprendimiento, <span class="text-[#4CAF50]">en tierra fértil.</span>
+                    </h1>
+                    <p class="text-md text-gray-600 mb-6 text-center">
+                        Te ayudamos a crecer con fe, orden y el apoyo financiero que necesitas.
+                    </p>
+                    <form id="contactForm" name="contact" method="POST" action="thanks.html"
+                          data-netlify="true" data-netlify-honeypot="bot-field" netlify>
+                        <input type="hidden" name="form-name" value="contact">
+                        <p class="hidden">
+                            <label>No llenar este campo <input name="bot-field"></label>
+                        </p>
+                        <div class="mb-4">
+                            <label for="name" class="block text-gray-700 font-medium mb-2">Nombre Completo</label>
+                            <input type="text" id="name" name="name" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4CAF50]" placeholder="Ej: Andrea Pérez" required>
+                            <div id="nameError" class="error-text hidden"></div>
+                        </div>
+                        <div class="mb-4">
+                            <label for="whatsapp" class="block text-gray-700 font-medium mb-2">Número de WhatsApp</label>
+                            <input type="tel" id="whatsapp" name="whatsapp" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4CAF50]" placeholder="Ej: 0991234567" required>
+                            <div id="whatsappError" class="error-text hidden"></div>
+                        </div>
+                        <div class="mb-6">
+                            <label for="email" class="block text-gray-700 font-medium mb-2">Correo Electrónico</label>
+                            <input type="email" id="email" name="email" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4CAF50]" placeholder="tu@correo.com" required>
+                            <div id="emailError" class="error-text hidden"></div>
+                        </div>
+                        <button type="submit" class="w-full bg-[#4CAF50] text-white font-bold py-3 px-6 rounded-full cta-button text-lg flex items-center justify-center gap-2">
+                            <span>🌱</span> Quiero mi asesoría gratuita
+                        </button>
+                        <p class="text-gray-500 mt-2 text-center text-sm">Respondemos en menos de 24h</p>
+                        <a href="https://wa.me/593999999999?text=Hola,%20quiero%20más%20información%20sobre%20INVERCOP%20y%20cómo%20pueden%20ayudarme%20a%20crecer." target="_blank" class="mt-4 w-full bg-[#25D366] text-white font-bold py-3 px-6 rounded-full cta-button flex items-center justify-center gap-2 focus:ring-2 focus:ring-[#25D366]" aria-label="Habla ahora por WhatsApp">
+                            <i class="fab fa-whatsapp"></i> Habla ahora por WhatsApp
+                        </a>
+                        <div id="formSuccess" class="hidden text-green-700 text-center mt-3 font-semibold"></div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </section>
+</main>
+
+<section class="py-12 bg-[#F7F7F7]">
+    <div class="container mx-auto px-6 max-w-5xl">
+        <div class="flex flex-col md:flex-row md:items-stretch gap-8 relative">
+            <!-- Timeline decorativo en desktop -->
+            <div class="hidden md:block absolute left-1/2 top-0 h-full w-1 bg-gradient-to-b from-[#4CAF50] to-transparent rounded-full"></div>
+            <!-- Misión -->
+            <div class="relative z-10 md:w-1/2 bg-white rounded-2xl shadow p-8 flex flex-col items-center h-full">
+                <span class="text-6xl mb-3 text-[#4CAF50]">🌱</span>
+                <h2 class="text-2xl font-bold text-[#4CAF50] mb-3">Nuestra Misión</h2>
+                <p class="text-gray-700 text-lg text-center leading-relaxed">
+                    Impulsar el desarrollo integral de las comunidades a través de servicios de microcrédito accesibles y responsables, promoviendo la <span class="relative group cursor-pointer font-semibold text-[#4CAF50]">
+            inclusión financiera
+            <span class="opacity-0 group-hover:opacity-100 transition bg-white border border-[#4CAF50] rounded shadow-md absolute left-1/2 -translate-x-1/2 top-8 text-xs px-3 py-2 z-20 whitespace-nowrap">
+              Acceso justo y solidario a crédito y ahorro
+            </span>
+          </span>, el emprendimiento local y el bienestar de nuestros socios, bajo principios de <span class="relative group cursor-pointer font-semibold text-[#4CAF50]">
+            solidaridad
+            <span class="opacity-0 group-hover:opacity-100 transition bg-white border border-[#4CAF50] rounded shadow-md absolute left-1/2 -translate-x-1/2 top-8 text-xs px-3 py-2 z-20 whitespace-nowrap">
+              Apoyo y colaboración entre miembros
+            </span>
+          </span>, <span class="relative group cursor-pointer font-semibold text-[#4CAF50]">
+            confianza
+            <span class="opacity-0 group-hover:opacity-100 transition bg-white border border-[#4CAF50] rounded shadow-md absolute left-1/2 -translate-x-1/2 top-8 text-xs px-3 py-2 z-20 whitespace-nowrap">
+              Relaciones transparentes y honestas
+            </span>
+          </span> y <span class="relative group cursor-pointer font-semibold text-[#4CAF50]">
+            compromiso social
+            <span class="opacity-0 group-hover:opacity-100 transition bg-white border border-[#4CAF50] rounded shadow-md absolute left-1/2 -translate-x-1/2 top-8 text-xs px-3 py-2 z-20 whitespace-nowrap">
+              Impacto positivo en la comunidad
+            </span>
+          </span>.
+                </p>
+            </div>
+            <!-- Visión -->
+            <div class="relative z-10 md:w-1/2 bg-white rounded-2xl shadow p-8 flex flex-col items-center h-full">
+                <span class="text-6xl mb-3 text-[#4CAF50]">🌟</span>
+                <h2 class="text-2xl font-bold text-[#4CAF50] mb-3">Nuestra Visión</h2>
+                <p class="text-gray-700 text-lg text-center leading-relaxed">
+                    Ser una cooperativa referente en inclusión financiera, reconocida por transformar vidas mediante el acceso <span class="relative group cursor-pointer font-semibold text-[#4CAF50]">
+            justo y solidario
+            <span class="opacity-0 group-hover:opacity-100 transition bg-white border border-[#4CAF50] rounded shadow-md absolute left-1/2 -translate-x-1/2 top-8 text-xs px-3 py-2 z-20 whitespace-nowrap">
+              Oportunidades iguales para todos los socios
+            </span>
+          </span> al microcrédito, fomentando comunidades <span class="relative group cursor-pointer font-semibold text-[#4CAF50]">
+            sostenibles
+            <span class="opacity-0 group-hover:opacity-100 transition bg-white border border-[#4CAF50] rounded shadow-md absolute left-1/2 -translate-x-1/2 top-8 text-xs px-3 py-2 z-20 whitespace-nowrap">
+              Desarrollo económico y social a largo plazo
+            </span>
+          </span>, empoderadas y económicamente activas.
+                </p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Services Section -->
+<section id="servicios" class="bg-white py-20">
+    <div class="container mx-auto px-6 text-center">
+        <h2 class="text-3xl font-bold text-[#2F4F4F] mb-4">Servicios profesionales para negocios y empresas</h2>
+        <p class="text-gray-600 max-w-2xl mx-auto mb-12">
+            Nos encargamos de la parte compleja para que tú te concentres en crecer.
+        </p>
+        <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+            <!-- Asesoría Legal -->
+            <div class="bg-white rounded-2xl shadow-md overflow-hidden service-card flex flex-col h-full">
+                <img src="https://images.pexels.com/photos/210990/pexels-photo-210990.jpeg?auto=compress&w=600&h=400&fit=crop" alt="Persona realizando cálculos tributarios - Asesoría Legal" class="object-cover w-full h-40">
+                <div class="p-6 flex flex-col flex-1">
+                    <h3 class="text-xl font-bold text-[#2F4F4F] mb-2">Asesoría Legal</h3>
+                    <p class="text-gray-600 mb-3">Acompañamiento profesional en temas legales empresariales y familiares.</p>
+                    <ul class="text-[#4CAF50] text-sm list-disc pl-5 text-left">
+                        <li>Constitución y trámites de compañías</li>
+                        <li>Divorcios y separación de bienes</li>
+                        <li>Poderes notariales y coactivas</li>
+                    </ul>
+                </div>
+            </div>
+            <!-- Contabilidad -->
+            <div class="bg-white rounded-2xl shadow-md overflow-hidden service-card flex flex-col h-full">
+                <img src="https://images.pexels.com/photos/4386327/pexels-photo-4386327.jpeg?auto=compress&w=600&h=400&fit=crop" alt="Mano recibiendo dinero - Contabilidad" class="object-cover w-full h-40">
+                <div class="p-6 flex flex-col flex-1">
+                    <h3 class="text-xl font-bold text-[#2F4F4F] mb-2">Contabilidad</h3>
+                    <p class="text-gray-600 mb-3">Gestión tributaria y contable para tu empresa o emprendimiento.</p>
+                    <ul class="text-[#4CAF50] text-sm list-disc pl-5 text-left">
+                        <li>Declaraciones de impuestos y anexos</li>
+                        <li>Eliminación de multas</li>
+                        <li>Patentes y asesoría contable</li>
+                    </ul>
+                </div>
+            </div>
+            <!-- Finanzas -->
+            <div class="bg-white rounded-2xl shadow-md overflow-hidden service-card flex flex-col h-full">
+                <img src="https://images.pexels.com/photos/4427613/pexels-photo-4427613.jpeg?auto=compress&w=600&h=400&fit=crop" alt="Persona firmando en una tablet - Finanzas" class="object-cover w-full h-40">
+                <div class="p-6 flex flex-col flex-1">
+                    <h3 class="text-xl font-bold text-[#2F4F4F] mb-2">Finanzas</h3>
+                    <p class="text-gray-600 mb-3">Soluciones financieras para tu crecimiento personal o empresarial.</p>
+                    <ul class="text-[#4CAF50] text-sm list-disc pl-5 text-left">
+                        <li>Revisión de buró crediticio</li>
+                        <li>Micropréstamos y créditos externos</li>
+                        <li>Planificación de ahorro e inversión</li>
+                    </ul>
+                </div>
+            </div>
+            <!-- Psicología -->
+            <div class="bg-white rounded-2xl shadow-md overflow-hidden service-card flex flex-col h-full">
+                <img src="https://images.pexels.com/photos/1108572/pexels-photo-1108572.jpeg?auto=compress&w=600&h=400&fit=crop" alt="Bombilla de luz representando una idea - Psicología" class="object-cover w-full h-40">
+                <div class="p-6 flex flex-col flex-1">
+                    <h3 class="text-xl font-bold text-[#2F4F4F] mb-2">Psicología</h3>
+                    <p class="text-gray-600 mb-3">Bienestar personal, familiar y empresarial con apoyo profesional.</p>
+                    <ul class="text-[#4CAF50] text-sm list-disc pl-5 text-left">
+                        <li>Psicopedagogía</li>
+                        <li>Orientación familiar</li>
+                        <li>Psicología clínica</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Why Us Section -->
+<section class="bg-[#F7F7F7] py-20">
+    <div class="container mx-auto px-6">
+        <h2 class="text-3xl font-bold text-center text-[#2F4F4F] mb-12">¿Por qué confiar en nosotros?</h2>
+        <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-10 max-w-5xl mx-auto">
+            <div class="text-center">
+                <div class="why-icon mx-auto bg-[#4CAF50] text-white w-20 h-20 rounded-full flex items-center justify-center text-3xl mb-4 shadow-lg cursor-pointer transition-all">
+                    <i class="fas fa-users" aria-hidden="true"></i>
+                </div>
+                <h3 class="text-xl font-bold text-[#2F4F4F] mb-2">Atención Personalizada</h3>
+                <p class="text-gray-600">Cada emprendedor es único. Nos dedicamos a entender tus necesidades y a ofrecerte soluciones a medida.</p>
+            </div>
+            <div class="text-center">
+                <div class="why-icon mx-auto bg-[#4CAF50] text-white w-20 h-20 rounded-full flex items-center justify-center text-3xl mb-4 shadow-lg cursor-pointer transition-all">
+                    <i class="fas fa-shield-alt" aria-hidden="true"></i>
+                </div>
+                <h3 class="text-xl font-bold text-[#2F4F4F] mb-2">Respaldo Legal y Contable</h3>
+                <p class="text-gray-600">Trabajamos con expertos para darte la tranquilidad de que todo está en orden y conforme a la ley.</p>
+            </div>
+            <div class="text-center">
+                <div class="why-icon mx-auto bg-[#4CAF50] text-white w-20 h-20 rounded-full flex items-center justify-center text-3xl mb-4 shadow-lg cursor-pointer transition-all">
+                    <i class="fas fa-search" aria-hidden="true"></i>
+                </div>
+                <h3 class="text-xl font-bold text-[#2F4F4F] mb-2">Sin Letras Pequeñas</h3>
+                <p class="text-gray-600">Creemos en la transparencia total. Te explicamos todo de forma clara y sencilla.</p>
+            </div>
+            <div class="text-center">
+                <div class="why-icon mx-auto bg-[#4CAF50] text-white w-20 h-20 rounded-full flex items-center justify-center text-3xl mb-4 shadow-lg cursor-pointer transition-all">
+                    <i class="fas fa-heart" aria-hidden="true"></i>
+                </div>
+                <h3 class="text-xl font-bold text-[#2F4F4F] mb-2">Crecimiento con Valores</h3>
+                <p class="text-gray-600">Nuestra base es la fe y el compromiso social. Te acompañamos con honestidad y empatía.</p>
+            </div>
+        </div>
+        <!-- Testimonio -->
+        <div class="mt-16 max-w-2xl mx-auto bg-white p-8 rounded-2xl shadow-md">
+            <blockquote class="text-[#2F4F4F] italic text-lg mb-3">"Gracias a INVERCOP mi emprendimiento pasó de ser solo una idea a un negocio formal y rentable. ¡Te acompañan de verdad!"</blockquote>
+            <div class="flex items-center justify-center">
+                <img src="https://randomuser.me/api/portraits/women/68.jpg" alt="Testimonio cliente" class="h-12 w-12 rounded-full mr-3">
+                <span class="font-semibold text-[#4CAF50]">Andrea P.</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- FAQ Section -->
+<section class="bg-white py-14">
+    <div class="container mx-auto px-6 max-w-3xl">
+        <h2 class="text-2xl font-bold text-[#2F4F4F] mb-7 text-center">Preguntas frecuentes</h2>
+        <div class="space-y-6">
+            <div>
+                <h4 class="font-semibold text-[#4CAF50] mb-1">¿Cuánto cuesta la asesoría inicial?</h4>
+                <p class="text-gray-600">La primera asesoría es totalmente gratuita y sin compromiso.</p>
+            </div>
+            <div>
+                <h4 class="font-semibold text-[#4CAF50] mb-1">¿Debo tener un negocio ya formalizado?</h4>
+                <p class="text-gray-600">No es necesario. Te ayudamos desde la etapa de idea hasta la formalización y crecimiento.</p>
+            </div>
+            <div>
+                <h4 class="font-semibold text-[#4CAF50] mb-1">¿Cuánto tiempo tardan los trámites?</h4>
+                <p class="text-gray-600">Depende del trámite, pero siempre buscamos agilizar el proceso y mantenerte informado/a.</p>
+            </div>
+            <div>
+                <h4 class="font-semibold text-[#4CAF50] mb-1">¿Qué documentos necesito?</h4>
+                <p class="text-gray-600">Te asesoramos y guiamos sobre los documentos necesarios según tu caso.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Floating WhatsApp Button -->
+<a href="https://wa.me/593999999999?text=Hola,%20quiero%20más%20información%20sobre%20INVERCOP%20y%20cómo%20pueden%20ayudarme%20a%20crecer." class="whatsapp-float" target="_blank" aria-label="Contactar por WhatsApp">
+    <i class="fab fa-whatsapp"></i>
+</a>
+
+<!-- Footer -->
+<footer id="contacto" class="bg-[#2F4F4F] text-white pt-16 pb-8 mt-16">
+    <div class="container mx-auto px-6">
+        <div class="grid md:grid-cols-3 gap-8 mb-8">
+            <!-- About -->
+            <div>
+                <img src="assets/images/invercoorp_logo.png?auto=compress&w=100&h=100&fit=crop" alt="Logo INVERCOP Blanco" class="h-16 w-16 mb-4 bg-white rounded-full p-1 object-cover">
+                <p class="text-gray-300">Somos tu aliado estratégico para el crecimiento y la formalización de tu emprendimiento en Ecuador.</p>
+            </div>
+            <!-- Contact Info -->
+            <div>
+                <h4 class="text-lg font-semibold mb-4">Información de Contacto</h4>
+                <ul class="space-y-2 text-gray-300">
+                    <li><i class="fas fa-map-marker-alt mr-2 text-[#4CAF50]"></i>PICHINCHA - QUITO, ECUADOR</li>
+                    <li><i class="fas fa-phone-alt mr-2 text-[#4CAF50]"></i>(593) 9XX-XXX-XXX</li>
+                    <li><i class="fas fa-envelope mr-2 text-[#4CAF50]"></i>contacto@invercop.com</li>
+                    <li><i class="fas fa-file-contract mr-2 text-[#4CAF50]"></i>RUC: 1793227553001</li>
+                </ul>
+                <p class="text-gray-400 text-sm mt-3">Horario: Lunes a Viernes, 9:00am - 6:00pm</p>
+            </div>
+            <!-- Social Media -->
+            <div>
+                <h4 class="text-lg font-semibold mb-4">Síguenos en Redes</h4>
+                <div class="flex space-x-4">
+                    <a href="https://facebook.com/invercop" class="text-gray-300 hover:text-[#4CAF50] text-2xl" target="_blank" rel="noopener"><i class="fab fa-facebook-f"></i></a>
+                    <a href="https://instagram.com/invercop" class="text-gray-300 hover:text-[#4CAF50] text-2xl" target="_blank" rel="noopener"><i class="fab fa-instagram"></i></a>
+                    <a href="https://linkedin.com/company/invercop" class="text-gray-300 hover:text-[#4CAF50] text-2xl" target="_blank" rel="noopener"><i class="fab fa-linkedin-in"></i></a>
+                </div>
+            </div>
+        </div>
+        <div class="border-t border-gray-700 mt-8 pt-6 text-center text-gray-400 text-sm">
+            <p>&copy; 2024 INVERCOP Semillas de Fe S.A.S. Todos los derechos reservados.<br>
+                Desarrollado con ❤️ por Vancouver Landings</p>
+        </div>
+    </div>
+</footer>
+
+<script src="assets/js/main.js"></script>
+</body>
+</html>
