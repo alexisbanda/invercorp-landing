@@ -20,8 +20,8 @@ const Footer: React.FC = () => {
             <h4 className="text-lg font-semibold mb-4">Información de Contacto</h4>
             <ul className="space-y-2 text-gray-300">
               <li><i className="fas fa-map-marker-alt mr-2 text-[#4CAF50]"></i>PICHINCHA - QUITO, ECUADOR</li>
-              <li><i className="fas fa-phone-alt mr-2 text-[#4CAF50]"></i>(593) 9XX-XXX-XXX</li>
-              <li><i className="fas fa-envelope mr-2 text-[#4CAF50]"></i>contacto@invercop.com</li>
+              <li><i className="fas fa-phone-alt mr-2 text-[#4CAF50]"></i>(593) 96338-6031</li>
+              <li><i className="fas fa-envelope mr-2 text-[#4CAF50]"></i>gerenciasemillasdefe@gmail.com</li>
               <li><i className="fas fa-file-contract mr-2 text-[#4CAF50]"></i>RUC: 1793227553001</li>
             </ul>
             <p className="text-gray-400 text-sm mt-3">Horario: Lunes a Viernes, 9:00am - 6:00pm</p>
