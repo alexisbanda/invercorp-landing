@@ -19,20 +19,21 @@
     <link rel="sitemap" type="application/xml" href="/sitemap.xml">
 
     <!-- Schema.org structured data will be handled by React components -->
-<script type="importmap">
-{
-  "imports": {
-    "react/": "https://esm.sh/react@^19.1.0/",
-    "react": "https://esm.sh/react@^19.1.0",
-    "react-dom/": "https://esm.sh/react-dom@^19.1.0/"
-  }
-}
-</script>
-<link rel="stylesheet" href="/index.css">
+    <script type="importmap">
+        {
+          "imports": {
+            "react/": "https://esm.sh/react@^19.1.0/",
+            "react": "https://esm.sh/react@^19.1.0",
+            "react-dom/": "https://esm.sh/react-dom@^19.1.0/"
+          }
+        }
+    </script>
+    <link rel="stylesheet" href="/index.css">
 </head>
 <body class="bg-white text-gray-800">
-    <div id="root"></div>
-    <script type="module" src="/index.js"></script>
+<div id="root"></div>
+<!-- Esta es la única línea de script que necesitas en el body.
+     Vite la usará para compilar y luego la reemplazará en la versión final. -->
 <script type="module" src="/index.tsx"></script>
 </body>
 </html>

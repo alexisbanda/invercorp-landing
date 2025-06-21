@@ -1,5 +1,12 @@
 [functions]
   node_bundler = "esbuild"
+
 [build]
-  command = "npm install"
+  # 1. Cambia el comando para que construya el proyecto
+  command = "npm run build"
+
+  # 2. Especifica el directorio de publicación (donde Vite deja los archivos finales)
+  publish = "dist"
+
+  # 3. Mantén tu configuración de functions
   functions = "netlify/functions"

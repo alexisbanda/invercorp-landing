@@ -25,7 +25,7 @@ const safetySettings = [
 ];
 
 
-exports.handler = async function(event, context) {
+export const handler = async function(event, context) {
     if (event.httpMethod !== 'POST') {
         return { statusCode: 405, body: JSON.stringify({ error: 'Método no permitido. Usa POST.' }) };
     }
