@@ -8,7 +8,7 @@ const Footer: React.FC = () => {
           {/* About */}
           <div>
             <img 
-              src="assets/images/invercoorp_logo.png"
+              src="/assets/images/invercoorp_logo.png"
               alt="Logo INVERCOP Blanco" 
               className="h-16 w-16 mb-4 bg-white rounded-full p-1 object-cover" 
               loading="lazy" 
