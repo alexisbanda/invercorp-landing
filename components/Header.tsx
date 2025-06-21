@@ -6,7 +6,7 @@ const Header: React.FC = () => {
       <nav className="container mx-auto px-6 py-4 flex justify-between items-center">
         <div className="flex items-center">
           <img 
-            src="https://invercorp.netlify.app/assets/images/invercoorp_logo.png" 
+            src="assets/images/invercoorp_logo.png"
             alt="Logo INVERCOP" 
             className="h-12 w-12 rounded-full object-cover mr-3 border-2 border-[#4CAF50]" 
             loading="lazy"
