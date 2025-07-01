@@ -4,6 +4,16 @@ import { ScaleIcon, CalculatorIcon, HeartHandshakeIcon, ChartBarIcon, LightBulbI
 // --- Datos de servicios más detallados ---
 const HERO_SERVICES_DETAILS = [
   {
+    icon: <ChartBarIcon className="w-7 h-7 text-[#4CAF50]" />,
+    title: 'Finanzas y Microcrédito',
+    description: 'Accede al capital semilla que tu idea necesita para despegar con nuestro respaldo.'
+  },
+  {
+    icon: <LightBulbIcon className="w-7 h-7 text-[#4CAF50]" />,
+    title: 'Emprendimiento',
+    description: 'Estructura tu plan de negocio de forma sólida y profesional para asegurar el éxito.'
+  },
+  {
     icon: <ScaleIcon className="w-7 h-7 text-[#4CAF50]" />,
     title: 'Asesoría Legal',
     description: 'Navega el marco legal ecuatoriano con confianza. Te conectamos con expertos.'
@@ -17,16 +27,6 @@ const HERO_SERVICES_DETAILS = [
     icon: <HeartHandshakeIcon className="w-7 h-7 text-[#4CAF50]" />,
     title: 'Apoyo Psicológico',
     description: 'Fortalece tu bienestar emocional para enfrentar los retos del emprendimiento.'
-  },
-  {
-    icon: <ChartBarIcon className="w-7 h-7 text-[#4CAF50]" />,
-    title: 'Finanzas y Microcrédito',
-    description: 'Accede al capital semilla que tu idea necesita para despegar con nuestro respaldo.'
-  },
-  {
-    icon: <LightBulbIcon className="w-7 h-7 text-[#4CAF50]" />,
-    title: 'Emprendimiento',
-    description: 'Estructura tu plan de negocio de forma sólida y profesional para asegurar el éxito.'
   }
 ];
 
