@@ -1,5 +1,7 @@
 import React from 'react';
-
+import React, { useState } from 'react'; // 1. Importa useState
+import CalculatorModal from './CalculatorModal'; // 2. Importa el nuevo componente
+import { useFeatureFlags } from '../contexts/FeatureFlagContext';
 interface ServiceItem {
   imageSrc: string;
   imageAlt: string;
@@ -40,29 +42,52 @@ const servicesData: ServiceItem[] = [
 ];
 
 const Services: React.FC = () => {
+  const [isCalculatorOpen, setCalculatorOpen] = useState(false); // 3. Añade el estado del modal
+  const { isLoanSimulatorEnabled } = useFeatureFlags();
   return (
-    <section id="servicios" className="bg-white py-20">
-      <div className="container mx-auto px-6 text-center">
-        <h2 className="text-3xl font-bold text-[#2F4F4F] mb-4">Servicios profesionales para negocios y empresas</h2>
-        <p className="text-gray-600 max-w-2xl mx-auto mb-12">
-          Nos encargamos de la parte compleja para que tú te concentres en crecer.
-        </p>
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
-          {servicesData.map(service => (
-            <div key={service.title} className="bg-white rounded-2xl shadow-md overflow-hidden service-card flex flex-col h-full">
-              <img src={service.imageSrc} alt={service.imageAlt} className="object-cover w-full h-40" loading="lazy" />
-              <div className="p-6 flex flex-col flex-1">
-                <h3 className="text-xl font-bold text-[#2F4F4F] mb-2">{service.title}</h3>
-                <p className="text-gray-600 mb-3">{service.description}</p>
-                <ul className="text-[#4CAF50] text-sm list-disc pl-5 text-left">
-                  {service.points.map(point => <li key={point}>{point}</li>)}
-                </ul>
-              </div>
+      <> {/* 4. Envuelve todo en un Fragment */}
+        <section id="servicios" className="bg-white py-20">
+          <div className="container mx-auto px-6 text-center">
+            <h2 className="text-3xl font-bold text-[#2F4F4F] mb-4">Servicios profesionales para negocios y empresas</h2>
+            <p className="text-gray-600 max-w-2xl mx-auto mb-12">
+              Nos encargamos de la parte compleja para que tú te concentres en crecer.
+            </p>
+            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+              {servicesData.map(service => (
+                  <div key={service.title} className="bg-white rounded-2xl shadow-md overflow-hidden service-card flex flex-col h-full">
+                    <img src={service.imageSrc} alt={service.imageAlt} className="object-cover w-full h-40" loading="lazy" />
+                    <div className="p-6 flex flex-col flex-1">
+                      <h3 className="text-xl font-bold text-[#2F4F4F] mb-2">{service.title}</h3>
+                      <p className="text-gray-600 mb-4">{service.description}</p>
+                      <ul className="text-[#4CAF50] text-sm list-disc pl-5 text-left mb-4">
+                        {service.points.map(point => <li key={point}>{point}</li>)}
+                      </ul>
+
+                      {/* 5. AÑADE EL BOTÓN CONDICIONALMENTE */}
+                      {isLoanSimulatorEnabled && service.title === 'Finanzas' && (
+                          <div className="mt-auto">
+                            <button
+                                onClick={() => setCalculatorOpen(true)}
+                                className="w-full bg-gray-200 text-[#4CAF50] font-bold py-2 px-4 rounded-full hover:bg-gray-300 transition-colors"
+                            >
+                              <i className="fas fa-calculator mr-2"></i>
+                              Simulador de Crédito
+                            </button>
+                          </div>
+                      )}
+                    </div>
+                  </div>
+              ))}
             </div>
-          ))}
-        </div>
-      </div>
-    </section>
+          </div>
+        </section>
+
+        {/* 6. Renderiza el modal */}
+        <CalculatorModal
+            isOpen={isCalculatorOpen}
+            onClose={() => setCalculatorOpen(false)}
+        />
+      </>
   );
 };
 

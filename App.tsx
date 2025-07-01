@@ -1,5 +1,6 @@
 import React from 'react';
 import Header from './components/Header';
+import { useFeatureFlags } from './contexts/FeatureFlagContext'; // <-- 1. Importar el hook
 import Hero from './components/Hero';
 import Statistics from './components/Statistics';
 import MissionVision from './components/MissionVision';
@@ -10,9 +11,10 @@ import FAQ from './components/FAQ';
 import Footer from './components/Footer';
 import FloatingWhatsAppButton from './components/FloatingWhatsAppButton';
 import JsonLD from './components/JsonLD';
-
+import Chatbot from './components/Chatbot'; // 1. Importa el nuevo componente
 
 function App() {
+    const { isChatbotEnabled } = useFeatureFlags(); // <-- 2. Usar el hook
   return (
     <>
       <JsonLD />
@@ -27,7 +29,7 @@ function App() {
       </main>
       <Footer />
       <FloatingWhatsAppButton />
-    </>
+        {isChatbotEnabled && <Chatbot />}    </>
   );
 }
 

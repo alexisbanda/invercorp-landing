@@ -1,7 +1,3 @@
-// 1. ARCHIVO: netlify/functions/gemini.js
-
-// Usamos la sintaxis moderna de importación de ES Modules.
-// Esto requiere la configuración en package.json ("type": "module")
 import fetch from 'node-fetch';
 
 // --- RECOMENDACIÓN 1: Definir constantes para un fácil ajuste ---
@@ -24,6 +20,15 @@ const safetySettings = [
     { "category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_MEDIUM_AND_ABOVE" }
 ];
 
+const systemInstruction = {
+    role: "user",
+    parts: [{
+        text: `Eres 'Inver', un asesor experto y muy amigable de INVERCOOP Semillas de Fe. Tu misión es ayudar a emprendedores de Ecuador con un tono cercano y profesional. Responde de forma clara y sencilla. Si no sabes algo, dilo honestamente y sugiere hablar con un asesor humano. Eres un bot, pero con mucha empatía.`
+    }]
+};
+
+// Las constantes para los mensajes iniciales y sugerencias se han eliminado de aquí.
+// Deben estar en tu componente de React (Chatbot.tsx).
 
 export const handler = async function(event, context) {
     if (event.httpMethod !== 'POST') {
@@ -45,20 +50,15 @@ export const handler = async function(event, context) {
     // --- Aplicación de RECOMENDACIÓN 1: Aplicar la ventana deslizante al historial ---
     const conversationHistory = incomingMessages.slice(-MAX_HISTORY_TURNS);
 
-    const systemInstruction = `Eres 'Inver', un asesor experto y muy amigable de INVERCOOP Semillas de Fe. Tu misión es ayudar a emprendedores de Ecuador con un tono cercano y profesional. Responde de forma clara y sencilla. Si no sabes algo, dilo honestamente y sugiere hablar con un asesor humano. Eres un bot, pero con mucha empatía.`;
-
     // Transformamos el historial al formato de Gemini
     const contents = conversationHistory.map(msg => ({
         role: msg.role === 'assistant' ? 'model' : 'user',
         parts: [{ text: msg.content }]
     }));
 
-    // --- RECOMENDACIÓN 3: Optimizar la inyección de la instrucción del sistema ---
-    // El prompt del sistema es largo y costoso. Solo debemos enviarlo en el PRIMER mensaje
-    // de toda la conversación para establecer el comportamiento del bot.
-    if (conversationHistory.length === 1 && contents[0].role === 'user') {
-        contents[0].parts[0].text = systemInstruction + "\n\n" + contents[0].parts[0].text;
-    }
+    // --- RECOMENDACIÓN 3: Inyectar la instrucción del sistema de forma eficiente ---
+    // Solo se añade la instrucción del sistema al principio de la conversación.
+    const finalContents = [systemInstruction, ...contents];
 
     try {
         const response = await fetch(
@@ -66,11 +66,10 @@ export const handler = async function(event, context) {
             {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                // Enviamos un cuerpo de petición mucho más completo y controlado
                 body: JSON.stringify({
-                    contents,
+                    contents: finalContents,
                     generationConfig, // <-- Aplicación de RECOMENDACIÓN 2
-                    safetySettings
+                    safetySettings    // <-- Aplicación de RECOMENDACIÓN 4
                 })
             }
         );
@@ -78,19 +77,14 @@ export const handler = async function(event, context) {
         if (!response.ok) {
             const errorData = await response.json();
             console.error("Error desde la API de Gemini:", errorData);
-
-            let errorMessage = errorData.error?.message || "Ocurrió un error al contactar a Gemini.";
-
-            // Si la respuesta es por un filtro de seguridad, el error es diferente
+            const errorMessage = errorData.error?.message || "Ocurrió un error al contactar a Gemini.";
             if (errorData.promptFeedback?.blockReason) {
-                errorMessage = `Contenido bloqueado por política de seguridad: ${errorData.promptFeedback.blockReason}`;
+                return { statusCode: 200, body: JSON.stringify({ message: { role: 'assistant', content: 'Lo siento, tu pregunta infringe nuestras políticas de seguridad. ¿Puedo ayudarte con otra cosa?' } }) };
             }
             return { statusCode: response.status, body: JSON.stringify({ error: errorMessage }) };
         }
 
         const data = await response.json();
-
-        // Navegación segura mejorada para manejar respuestas bloqueadas
         const botResponse = data.candidates?.[0]?.content?.parts?.[0]?.text || "Lo siento, no pude generar una respuesta. Por favor, intenta reformular tu pregunta.";
 
         return {

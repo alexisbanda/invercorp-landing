@@ -6,6 +6,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import type { Root } from 'react-dom/client';
 import App from './App';
+import { FeatureFlagProvider } from './contexts/FeatureFlagContext'; // <-- 1. Importar
 // import './assets/css/styles.css'; // Global styles are imported in index.html
 
 // We cast the container to include a custom property to hold the root.
@@ -21,7 +22,9 @@ if (container) {
   // Now we can safely render or update the component.
   container._reactRoot.render(
       <React.StrictMode>
-        <App />
+          <FeatureFlagProvider>
+            <App />
+          </FeatureFlagProvider>
       </React.StrictMode>
   );
 } else {

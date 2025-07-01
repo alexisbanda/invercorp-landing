@@ -1,6 +1,7 @@
 import React from 'react';
-
+import { useFeatureFlags } from '../contexts/FeatureFlagContext';
 const Header: React.FC = () => {
+  const { isClientPortalEnabled } = useFeatureFlags();
   return (
     <header className="bg-white shadow-sm sticky top-0 z-50">
       <nav className="container mx-auto px-6 py-4 flex justify-between items-center">
@@ -22,6 +23,14 @@ const Header: React.FC = () => {
             Asesoría Gratuita
           </a>
         </div>
+        {isClientPortalEnabled && (
+            <a
+                href="/portal/login"
+                className="bg-green-500 text-white font-bold px-4 py-2 rounded-lg hover:bg-green-600"
+            >
+              Portal Clientes
+            </a>
+        )}
       </nav>
     </header>
   );
