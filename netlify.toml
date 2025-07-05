@@ -1,12 +1,15 @@
+# netlify.toml
+
+[build]
+  command = "npm run build"
+  publish = "dist"
+  functions = "netlify/functions"
+
 [functions]
   node_bundler = "esbuild"
 
-[build]
-  # 1. Cambia el comando para que construya el proyecto
-  command = "npm run build"
-
-  # 2. Especifica el directorio de publicación (donde Vite deja los archivos finales)
-  publish = "dist"
-
-  # 3. Mantén tu configuración de functions
-  functions = "netlify/functions"
+# --- NUEVO: Añade esta sección para programar la función ---
+#[functions.dailyChecks]
+#  # Expresión Cron: "Minuto Hora Día Mes DíaDeLaSemana"
+#  # "0 8 * * *" significa: a las 8:00 AM, todos los días.
+#  schedule = "0 8 * * *"
