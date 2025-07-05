@@ -15,6 +15,38 @@ import {
 import { db } from '../firebase-config';
 import { Loan, Installment, LoanStatus } from '../types';
 
+// --- FUNCIÓN DE AYUDA REUTILIZABLE ---
+// Para evitar repetir código, podemos crear una función que transforme un documento de Firestore a nuestro tipo `Loan`.
+const docToLoan = (doc: any): Loan => {
+    const data = doc.data();
+
+    // --- CORRECCIÓN CLAVE ---
+    // Verificamos si `data.installments` es un arreglo. Si no lo es, usamos un arreglo vacío.
+    const installmentsSource = Array.isArray(data.installments) ? data.installments : [];
+    const formattedInstallments = installmentsSource.map((inst: any) => ({
+        ...inst,
+        // Aseguramos que dueDate exista antes de llamar a toDate()
+        dueDate: inst.dueDate?.toDate(),
+        // El `?` ya maneja si paymentDate es null/undefined
+        paymentDate: inst.paymentDate?.toDate(),
+    }));
+
+    return {
+        id: doc.id,
+        userId: data.userId,
+        userName: data.userName,
+        userEmail: data.userEmail,
+        loanAmount: data.loanAmount,
+        currency: data.currency,
+        applicationDate: data.applicationDate?.toDate(),
+        disbursementDate: data.disbursementDate?.toDate(),
+        status: data.status as LoanStatus,
+        statusHistory: data.statusHistory || [],
+        installments: formattedInstallments,
+    } as Loan;
+}
+
+
 /**
  * Obtiene los préstamos de un usuario específico para el portal de cliente.
  */
@@ -23,7 +55,7 @@ export const getLoansForCurrentUser = async (userId: string): Promise<Loan[]> =>
     const q = query(
         loansCollectionRef,
         where('userId', '==', userId),
-        orderBy('applicationDate', 'desc') // Ordenamos por la nueva fecha
+        orderBy('applicationDate', 'desc')
     );
 
     const querySnapshot = await getDocs(q);
@@ -32,32 +64,8 @@ export const getLoansForCurrentUser = async (userId: string): Promise<Loan[]> =>
         return [];
     }
 
-    // --- INICIO DE LA CORRECCIÓN ---
-    // Mapeo completo y seguro de los datos del préstamo
-    const loans = querySnapshot.docs.map(doc => {
-        const data = doc.data();
-        const formattedInstallments = (data.installments || []).map((inst: any) => ({
-            ...inst,
-            dueDate: inst.dueDate.toDate(),
-            paymentDate: inst.paymentDate?.toDate(),
-        }));
-
-        return {
-            id: doc.id,
-            userId: data.userId,
-            userName: data.userName,
-            userEmail: data.userEmail,
-            loanAmount: data.loanAmount,
-            currency: data.currency,
-            // Mapeamos todos los nuevos campos
-            applicationDate: data.applicationDate.toDate(),
-            disbursementDate: data.disbursementDate?.toDate(),
-            status: data.status as LoanStatus,
-            statusHistory: data.statusHistory || [],
-            installments: formattedInstallments,
-        } as Loan;
-    });
-    // --- FIN DE LA CORRECCIÓN ---
+    // Usamos la función de ayuda para mapear los resultados de forma segura.
+    const loans = querySnapshot.docs.map(docToLoan);
 
     return loans;
 };
@@ -70,31 +78,8 @@ export const getAllLoansForAdmin = async (): Promise<Loan[]> => {
     const q = query(loansRef, orderBy('applicationDate', 'desc'));
     const querySnapshot = await getDocs(q);
 
-    // --- INICIO DE LA CORRECCIÓN ---
-    // Mapeo completo y seguro de los datos del préstamo
-    const allLoans: Loan[] = querySnapshot.docs.map(doc => {
-        const data = doc.data();
-        const formattedInstallments = (data.installments || []).map((inst: any) => ({
-            ...inst,
-            dueDate: inst.dueDate.toDate(),
-            paymentDate: inst.paymentDate?.toDate(),
-        }));
-        return {
-            id: doc.id,
-            userId: data.userId,
-            userEmail: data.userEmail,
-            userName: data.userName,
-            loanAmount: data.loanAmount,
-            currency: data.currency,
-            // Mapeamos todos los nuevos campos
-            applicationDate: data.applicationDate.toDate(),
-            disbursementDate: data.disbursementDate?.toDate(),
-            status: data.status as LoanStatus,
-            statusHistory: data.statusHistory || [],
-            installments: formattedInstallments,
-        } as Loan;
-    });
-    // --- FIN DE LA CORRECCIÓN ---
+    // Usamos la misma función de ayuda aquí.
+    const allLoans: Loan[] = querySnapshot.docs.map(docToLoan);
 
     return allLoans;
 };
@@ -118,26 +103,27 @@ export const reportPaymentForInstallment = async (
         throw new Error("El préstamo no fue encontrado.");
     }
 
-    const loan = loanSnap.data() as Loan;
-    const installments = loan.installments || [];
+    // Es más seguro obtener los datos y validarlos
+    const installments = loanSnap.data().installments || [];
+    if (!Array.isArray(installments)) {
+        // Si las cuotas no son un array en la BD, no podemos continuar.
+        throw new Error(`Los datos de cuotas para el préstamo ${loanId} están corruptos.`);
+    }
 
     // Busca la cuota y la actualiza
     const updatedInstallments = installments.map(inst => {
         if (inst.installmentNumber === installmentNumber) {
-            // ¡ESTA ES LA CORRECCIÓN CLAVE!
-            // Usamos Timestamp.fromDate() para convertir el Date de JS a un Timestamp de Firestore.
             return {
                 ...inst,
                 status: 'EN VERIFICACIÓN',
-                paymentReportDate: Timestamp.fromDate(new Date()), // <-- CORRECCIÓN
+                paymentReportDate: Timestamp.fromDate(new Date()),
                 paymentReportNotes: reportData.paymentReportNotes,
-                adminNotes: '', // Opcional: Limpiar notas antiguas del admin al reportar
+                adminNotes: '',
             };
         }
         return inst;
     });
 
-    // Escribe el array de cuotas completamente actualizado de vuelta al documento.
     await updateDoc(loanRef, {
         installments: updatedInstallments
     });
@@ -160,6 +146,9 @@ export const resolvePayment = async (
     }
 
     const currentInstallments = loanSnap.data().installments || [];
+    if (!Array.isArray(currentInstallments)) {
+        throw new Error(`Los datos de cuotas para el préstamo ${loanId} están corruptos.`);
+    }
 
     const updatedInstallments = currentInstallments.map((inst: Installment) => {
         if (inst.installmentNumber === installmentNumber) {
@@ -168,7 +157,8 @@ export const resolvePayment = async (
                 adminNotes: adminNotes || '',
             };
             if (newStatus === 'PAGADO') {
-                update.paymentConfirmationDate = new Date(); // Usamos el campo de fecha correcto
+                // Firestore maneja bien los objetos Date de JS al escribir, los convierte a Timestamps.
+                update.paymentConfirmationDate = new Date();
             }
             return { ...inst, ...update };
         }
@@ -191,6 +181,7 @@ export const updateLoanStatus = async (
 ): Promise<void> => {
     const loanDocRef = doc(db, 'loans', loanId);
 
+    // Firestore convierte automáticamente los objetos Date a Timestamps al escribir.
     const newStatusEntry = {
         status: newStatus,
         date: new Date(),

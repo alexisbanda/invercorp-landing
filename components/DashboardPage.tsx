@@ -142,6 +142,7 @@ const LoanCard: React.FC<{ loan: Loan; onReportPayment: (loanId: string, install
         }
     };
 
+    // Esta es la condición clave que determina si se muestra el plan de pagos
     const showPaymentPlan = [LoanStatus.DESEMBOLSADO, LoanStatus.COMPLETADO, LoanStatus.EN_MORA].includes(loan.status);
 
     return (
@@ -185,31 +186,31 @@ const LoanCard: React.FC<{ loan: Loan; onReportPayment: (loanId: string, install
                                 <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
                             </tr>
                             </thead>
-                        <tbody className="bg-white divide-y divide-gray-200 text-sm">
-                        {loan.installments.map((inst, index) => (
-                            <tr key={`${loan.id}-${inst.installmentNumber}`} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}>
-                                <td className="px-4 py-4 font-medium text-gray-900">{inst.installmentNumber}</td>
+                            <tbody className="bg-white divide-y divide-gray-200 text-sm">
+                            {loan.installments.map((inst, index) => (
+                                <tr key={`${loan.id}-${inst.installmentNumber}`} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}>
+                                    <td className="px-4 py-4 font-medium text-gray-900">{inst.installmentNumber}</td>
 
-                                {/* --- CORRECCIÓN: Rellenar estas celdas con los datos --- */}
-                                <td className="px-4 py-4 text-gray-600">{inst.dueDate?.toLocaleDateString('es-EC') ?? 'N/A'}</td>
-                                <td className="px-4 py-4 text-gray-600">{inst.amount.toLocaleString('es-EC', { style: 'currency', currency: loan.currency })}</td>
+                                    {/* --- COMENTARIO ELIMINADO --- */}
+                                    <td className="px-4 py-4 text-gray-600">{inst.dueDate?.toLocaleDateString('es-EC') ?? 'N/A'}</td>
+                                    <td className="px-4 py-4 text-gray-600">{inst.amount.toLocaleString('es-EC', { style: 'currency', currency: loan.currency })}</td>
 
-                                <td className="px-4 py-4">
-                                    <InstallmentStatusBadge status={inst.status} />
-                                    {inst.adminNotes && (
-                                        <p className="text-xs text-red-600 mt-1 italic" title="Nota del administrador">{inst.adminNotes}</p>
-                                    )}
-                                </td>
-                                <td className="px-4 py-4 text-center">
-                                    {inst.status === 'PENDIENTE' && (
-                                        <button onClick={() => handleReportClick(inst.installmentNumber)} className="px-3 py-1 text-xs font-semibold text-white bg-[#4CAF50] rounded-md hover:bg-[#45a049] transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#4CAF50]">
-                                            Reportar Pago
-                                        </button>
-                                    )}
-                                </td>
-                            </tr>
-                        ))}
-                        </tbody>
+                                    <td className="px-4 py-4">
+                                        <InstallmentStatusBadge status={inst.status} />
+                                        {inst.adminNotes && (
+                                            <p className="text-xs text-red-600 mt-1 italic" title="Nota del administrador">{inst.adminNotes}</p>
+                                        )}
+                                    </td>
+                                    <td className="px-4 py-4 text-center">
+                                        {inst.status === 'PENDIENTE' && (
+                                            <button onClick={() => handleReportClick(inst.installmentNumber)} className="px-3 py-1 text-xs font-semibold text-white bg-[#4CAF50] rounded-md hover:bg-[#45a049] transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#4CAF50]">
+                                                Reportar Pago
+                                            </button>
+                                        )}
+                                    </td>
+                                </tr>
+                            ))}
+                            </tbody>
                         </table>
                     </div>
                 </div>
