@@ -4,13 +4,11 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { collection, getDocs, Timestamp } from 'firebase/firestore';
 import { Link } from 'react-router-dom';
 import { db } from '../../firebase-config';
-import { Loan, LoanStatus } from '../../types';
-// --- PASO 1: Importar el nuevo modal ---
+import { Loan, LoanStatus, Installment } from '../../types'; // Asegúrate de importar Installment
 import { ChangeStatusModal } from './ChangeStatusModal';
 
-// (El componente StatusBadge no cambia, lo dejamos como está)
+// (El componente StatusBadge no cambia)
 const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
-    // ... código del badge sin cambios
     const baseClasses = "px-2 py-1 text-xs font-semibold rounded-full leading-tight";
     let colorClasses = "bg-gray-100 text-gray-800";
 
@@ -33,29 +31,50 @@ const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
     return <span className={`${baseClasses} ${colorClasses}`}>{status.replace('_', ' ')}</span>;
 };
 
+// --- 1. (NUEVO) Componente para el badge de verificación, igual que en el otro archivo ---
+const VerificationPendingBadge: React.FC = () => (
+    <span
+        className="ml-2 px-2 py-1 text-xs font-bold text-yellow-800 bg-yellow-200 rounded-full animate-pulse"
+        title="Este préstamo tiene una o más cuotas pendientes de verificación"
+    >
+        REQUIERE ATENCIÓN
+    </span>
+);
+
 
 export const LoanManagementPage = () => {
     const [loans, setLoans] = useState<Loan[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [selectedLoan, setSelectedLoan] = useState<Loan | null>(null);
-
-    // --- PASO 2: Añadir estados para los filtros ---
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState('');
 
-    // --- PASO 3: Extraer la lógica de fetch para poder llamarla de nuevo ---
     const fetchLoans = async () => {
         setIsLoading(true);
         try {
             const loansCollection = collection(db, 'loans');
             const loansSnapshot = await getDocs(loansCollection);
+
+            // --- LÓGICA DE MAPEO MEJORADA PARA INCLUIR CUOTAS ---
             const loansData = loansSnapshot.docs.map(doc => {
                 const data = doc.data();
+
+                // Procesamos el array de cuotas para convertir Timestamps a Dates
+                const installmentsSource = Array.isArray(data.installments) ? data.installments : [];
+                const formattedInstallments = installmentsSource.map((inst: any) => ({
+                    ...inst,
+                    dueDate: inst.dueDate?.toDate(),
+                    paymentDate: inst.paymentDate?.toDate(),
+                    paymentReportDate: inst.paymentReportDate?.toDate(),
+                    paymentConfirmationDate: inst.paymentConfirmationDate?.toDate(),
+                }));
+
                 return {
                     id: doc.id,
                     ...data,
-                    applicationDate: (data.applicationDate as Timestamp).toDate(),
-                    // Asegúrate de convertir todas las fechas necesarias
+                    applicationDate: (data.applicationDate as Timestamp)?.toDate(),
+                    disbursementDate: (data.disbursementDate as Timestamp)?.toDate(),
+                    installments: formattedInstallments, // Usamos las cuotas formateadas
                 } as Loan;
             });
             setLoans(loansData);
@@ -74,15 +93,12 @@ export const LoanManagementPage = () => {
         setSelectedLoan(loan);
     };
 
-    // --- PASO 4: Lógica para filtrar los préstamos ---
     const filteredLoans = useMemo(() => {
         return loans.filter(loan => {
             const matchesSearch =
                 loan.userName.toLowerCase().includes(searchTerm.toLowerCase()) ||
                 loan.userEmail.toLowerCase().includes(searchTerm.toLowerCase());
-
             const matchesStatus = statusFilter ? loan.status === statusFilter : true;
-
             return matchesSearch && matchesStatus;
         });
     }, [loans, searchTerm, statusFilter]);
@@ -95,7 +111,7 @@ export const LoanManagementPage = () => {
         <div className="p-6 bg-gray-50 min-h-full">
             <h1 className="text-2xl font-bold text-gray-800 mb-4">Gestión de Préstamos</h1>
 
-            {/* --- PASO 5: UI de los filtros --- */}
+            {/* --- UI de filtros (sin cambios) --- */}
             <div className="mb-4 p-4 bg-white rounded-lg shadow-sm flex flex-col sm:flex-row gap-4 items-center">
                 <input
                     type="text"
@@ -125,7 +141,6 @@ export const LoanManagementPage = () => {
             <div className="bg-white shadow-md rounded-lg overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="min-w-full divide-y divide-gray-200">
-                        {/* ... Thead sin cambios ... */}
                         <thead className="bg-gray-100">
                         <tr>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cliente</th>
@@ -136,52 +151,62 @@ export const LoanManagementPage = () => {
                         </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-200">
-                        {/* --- PASO 6: Mapear sobre los préstamos filtrados --- */}
-                        {filteredLoans.map((loan) => (
-                            <tr key={loan.id} className="hover:bg-gray-50">
-                                <td className="px-6 py-4 whitespace-nowrap">
-                                    <div className="text-sm font-medium text-gray-900">{loan.userName}</div>
-                                    <div className="text-sm text-gray-500">{loan.userEmail}</div>
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${loan.loanAmount.toFixed(2)}</td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                    {loan.applicationDate.toLocaleDateString('es-EC')}
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-center">
-                                    <StatusBadge status={loan.status} />
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-center">
-                                    <div className="flex items-center justify-center gap-2">
-                                        <Link
-                                            to={`/portal/admin/management/${loan.id}`}
-                                            className="bg-blue-500 hover:bg-blue-700 text-white font-semibold py-1 px-3 rounded-md text-xs transition-colors duration-200"
-                                            title="Ver detalle de cuotas"
-                                        >
-                                            Ver Cuotas
-                                        </Link>
-                                        <button
-                                            onClick={() => handleOpenStatusModal(loan)}
-                                            className="bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-1 px-3 rounded-md text-xs transition-colors duration-200"
-                                            title="Cambiar estado del préstamo"
-                                        >
-                                            Cambiar Estado
-                                        </button>
-                                    </div>
-                                </td>
-                            </tr>
-                        ))}
+                        {filteredLoans.map((loan) => {
+                            // --- 2. (NUEVO) Lógica de verificación, igual que en el otro archivo ---
+                            const hasPendingVerification = loan.installments?.some(
+                                (inst) => inst.status?.trim().toUpperCase() === 'EN VERIFICACIÓN'
+                            );
+
+                            return (
+                                <tr key={loan.id} className="hover:bg-gray-50">
+                                    <td className="px-6 py-4 whitespace-nowrap">
+                                        <div className="text-sm font-medium text-gray-900">{loan.userName}</div>
+                                        <div className="text-sm text-gray-500">{loan.userEmail}</div>
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${loan.loanAmount.toFixed(2)}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                        {loan.applicationDate?.toLocaleDateString('es-EC') ?? 'N/A'}
+                                    </td>
+                                    {/* --- 3. (MODIFICADO) Celda de estado con el badge condicional --- */}
+                                    <td className="px-6 py-4 whitespace-nowrap text-center">
+                                        <div className="flex items-center justify-center">
+                                            <StatusBadge status={loan.status} />
+                                            {hasPendingVerification && <VerificationPendingBadge />}
+                                        </div>
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-center">
+                                        <div className="flex items-center justify-center gap-2">
+                                            {/* El link ahora apunta a la página de detalle de cuotas */}
+                                            <Link
+                                                to={`/portal/admin/management/${loan.id}`}
+                                                className="bg-blue-500 hover:bg-blue-700 text-white font-semibold py-1 px-3 rounded-md text-xs transition-colors duration-200"
+                                                title="Ver detalle de cuotas"
+                                            >
+                                                Ver Cuotas
+                                            </Link>
+                                            <button
+                                                onClick={() => handleOpenStatusModal(loan)}
+                                                className="bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-1 px-3 rounded-md text-xs transition-colors duration-200"
+                                                title="Cambiar estado del préstamo"
+                                            >
+                                                Cambiar Estado
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            );
+                        })}
                         </tbody>
                     </table>
                 </div>
             </div>
 
-            {/* --- PASO 7: Renderizar el modal condicionalmente --- */}
             {selectedLoan && (
                 <ChangeStatusModal
                     loan={selectedLoan}
                     onClose={() => setSelectedLoan(null)}
                     onStatusChange={() => {
-                        fetchLoans(); // Refresca la lista de préstamos
+                        fetchLoans();
                     }}
                 />
             )}

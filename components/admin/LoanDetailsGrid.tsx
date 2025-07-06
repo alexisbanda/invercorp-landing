@@ -3,7 +3,6 @@
 import React from 'react';
 import Papa from 'papaparse';
 import { Loan } from '@/types.ts';
-// --- 1. Importar Link ---
 import { Link } from 'react-router-dom';
 
 interface LoanDetailsGridProps {
@@ -11,7 +10,6 @@ interface LoanDetailsGridProps {
     title: string;
 }
 
-// --- Mejora: Función de formato de fecha consistente ---
 const formatDate = (date: Date): string => {
     if (!(date instanceof Date) || isNaN(date.getTime())) {
         return 'Fecha inválida';
@@ -22,6 +20,18 @@ const formatDate = (date: Date): string => {
         day: 'numeric',
     }).format(date);
 };
+
+// --- 1. (NUEVO) Componente para el badge de verificación ---
+// Lo creamos aquí mismo para mantenerlo encapsulado, ya que es muy específico para este grid.
+const VerificationPendingBadge: React.FC = () => (
+    <span
+        className="ml-2 px-2 py-1 text-xs font-bold text-yellow-800 bg-yellow-200 rounded-full animate-pulse"
+        title="Este préstamo tiene una o más cuotas pendientes de verificación"
+    >
+        REQUIERE ATENCIÓN
+    </span>
+);
+
 
 export const LoanDetailsGrid: React.FC<LoanDetailsGridProps> = ({ loans, title }) => {
 
@@ -71,29 +81,43 @@ export const LoanDetailsGrid: React.FC<LoanDetailsGridProps> = ({ loans, title }
                         <th className="text-left py-3 px-4 uppercase font-semibold text-sm">Monto</th>
                         <th className="text-left py-3 px-4 uppercase font-semibold text-sm">Fecha Solicitud</th>
                         <th className="text-left py-3 px-4 uppercase font-semibold text-sm">Estado</th>
-                        {/* --- 2. Añadir cabecera de Acciones --- */}
                         <th className="text-center py-3 px-4 uppercase font-semibold text-sm">Acciones</th>
                     </tr>
                     </thead>
                     <tbody className="text-gray-700">
-                    {loans.map((loan) => (
-                        <tr key={loan.id} className="border-b hover:bg-gray-50">
-                            <td className="text-left py-3 px-4">{loan.userName}</td>
-                            <td className="text-left py-3 px-4">${loan.loanAmount.toFixed(2)}</td>
-                            <td className="text-left py-3 px-4">{formatDate(loan.applicationDate)}</td>
-                            <td className="text-left py-3 px-4">{loan.status}</td>
-                            {/* --- 3. Añadir celda y botón de acción --- */}
-                            <td className="text-center py-3 px-4">
-                                <Link
-                                    to={`/portal/admin/management/${loan.id}`}
-                                    className="bg-blue-500 hover:bg-blue-700 text-white font-semibold py-1 px-3 rounded-md text-xs transition-colors duration-200"
-                                    title="Ver detalle de cuotas"
-                                >
-                                    Ver Detalle
-                                </Link>
-                            </td>
-                        </tr>
-                    ))}
+                    {loans.map((loan) => {
+                        // --- 2. (NUEVO) Lógica para verificar si hay cuotas pendientes ---
+                        // Usamos .some() porque es más eficiente. Se detiene tan pronto como encuentra una coincidencia.
+                        const hasPendingVerification = loan.installments?.some(
+                            (inst) => inst.status?.trim().toUpperCase() === 'EN VERIFICACIÓN'
+                        );
+
+                        return (
+                            <tr key={loan.id} className="border-b hover:bg-gray-50">
+                                <td className="text-left py-3 px-4">{loan.userName}</td>
+                                <td className="text-left py-3 px-4">${loan.loanAmount.toFixed(2)}</td>
+                                <td className="text-left py-3 px-4">{formatDate(loan.applicationDate)}</td>
+
+                                {/* --- 3. (MODIFICADO) Celda de estado con renderizado condicional del badge --- */}
+                                <td className="text-left py-3 px-4">
+                                    <div className="flex items-center">
+                                        <span>{loan.status}</span>
+                                        {hasPendingVerification && <VerificationPendingBadge />}
+                                    </div>
+                                </td>
+
+                                <td className="text-center py-3 px-4">
+                                    <Link
+                                        to={`/portal/admin/loan/${loan.id}`} // Corregido para apuntar a la página de gestión de cuotas
+                                        className="bg-blue-500 hover:bg-blue-700 text-white font-semibold py-1 px-3 rounded-md text-xs transition-colors duration-200"
+                                        title="Ver detalle de cuotas"
+                                    >
+                                        Gestionar
+                                    </Link>
+                                </td>
+                            </tr>
+                        );
+                    })}
                     </tbody>
                 </table>
             </div>
