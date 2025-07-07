@@ -108,7 +108,7 @@ export const LoanDetailsGrid: React.FC<LoanDetailsGridProps> = ({ loans, title }
 
                                 <td className="text-center py-3 px-4">
                                     <Link
-                                        to={`/portal/admin/loan/${loan.id}`} // Corregido para apuntar a la página de gestión de cuotas
+                                        to={`/portal/admin/management/${loan.id}`} // Corregido para apuntar a la página de gestión de cuotas
                                         className="bg-blue-500 hover:bg-blue-700 text-white font-semibold py-1 px-3 rounded-md text-xs transition-colors duration-200"
                                         title="Ver detalle de cuotas"
                                     >

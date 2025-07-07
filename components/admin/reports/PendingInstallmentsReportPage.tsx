@@ -148,7 +148,7 @@ export const PendingInstallmentsReportPage = () => {
                                     <td className="py-4 px-4 text-sm text-gray-500">{formatDate(inst.dueDate)}</td>
                                     <td className="py-4 px-4 text-center"><StatusBadge status={inst.status} /></td>
                                     <td className="py-4 px-4 text-center">
-                                        <Link to={`/portal/admin/loan/${inst.loanId}`} className="text-blue-600 hover:underline text-sm font-semibold">
+                                        <Link to={`/portal/admin/management/${inst.loanId}`} className="text-blue-600 hover:underline text-sm font-semibold">
                                             Gestionar
                                         </Link>
                                     </td>
