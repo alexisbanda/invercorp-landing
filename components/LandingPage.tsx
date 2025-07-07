@@ -27,7 +27,7 @@ export const LandingPage: React.FC = () => {
             {/* --- INICIO DE LA CORRECCIÓN --- */}
             {/* Añadimos de nuevo el botón flotante de WhatsApp */}
             <a
-                href="https://wa.me/593999942309?text=Hola,%20necesito%20asesoría%20para%20mi%20emprendimiento."
+                href="https://wa.me/593963386031?text=Hola,%20necesito%20asesoría%20para%20mi%20emprendimiento."
                 className="whatsapp-float"
                 target="_blank"
                 rel="noopener noreferrer"

@@ -13,3 +13,10 @@
 #  # Expresión Cron: "Minuto Hora Día Mes DíaDeLaSemana"
 #  # "0 8 * * *" significa: a las 8:00 AM, todos los días.
 #  schedule = "0 8 * * *"
+
+# --- SOLUCIÓN: Regla de reescritura para SPAs ---
+# Esto asegura que todas las rutas sean manejadas por React Router.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

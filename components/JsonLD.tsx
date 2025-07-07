@@ -21,12 +21,12 @@ const JsonLD: React.FC = () => {
       "longitude": "-78.4678"
     },
     "telephone": "+593-963386031",
-    "email": "gerenciasemillasdefe@gmail.com",
+    "email": "invercopsemillasdefe@gmail.com",
     "contactPoint": {
       "@type": "ContactPoint",
       "telephone": "+593-963386031",
       "contactType": "customer service",
-      "email": "gerenciasemillasdefe@gmail.com",
+      "email": "invercopsemillasdefe@gmail.com",
       "availableLanguage": ["Spanish"]
     },
     "sameAs": [
