@@ -26,7 +26,7 @@ const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
         case 'PAGADO': colorClasses = "bg-green-200 text-green-800"; break;
         case 'VENCIDO': colorClasses = "bg-red-200 text-red-800"; break;
         case 'EN VERIFICACIÓN': colorClasses = "bg-yellow-200 text-yellow-800"; break;
-        case 'PENDIENTE': colorClasses = "bg-blue-200 text-blue-800"; break;
+        case 'POR VENCER': colorClasses = "bg-blue-200 text-blue-800"; break;
     }
     return <span className={`${baseClasses} ${colorClasses}`}>{status}</span>;
 };
@@ -96,7 +96,7 @@ export const PendingInstallmentsReportPage = () => {
                             className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
                         >
                             <option value="TODOS">Todos los Estados</option>
-                            <option value="PENDIENTE">Pendiente</option>
+                            <option value="POR VENCER">Pendiente</option>
                             <option value="VENCIDO">Vencido</option>
                             <option value="EN VERIFICACIÓN">En Verificación</option>
                         </select>

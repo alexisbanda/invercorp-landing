@@ -72,6 +72,7 @@ const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
         case 'VENCIDO': colorClasses = "bg-red-200 text-red-800"; break;
         case 'EN VERIFICACIÓN': colorClasses = "bg-yellow-200 text-yellow-800"; break;
         case 'PENDIENTE': colorClasses = "bg-blue-200 text-blue-800"; break;
+        case 'POR VENCER': colorClasses = "bg-blue-200 text-blue-800"; break;
         case 'SOLICITADO': colorClasses = "bg-gray-200 text-gray-800"; break;
         case 'DESEMBOLSADO': colorClasses = "bg-purple-200 text-purple-800"; break;
         case 'RECHAZADO': colorClasses = "bg-red-200 text-red-800"; break;

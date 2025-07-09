@@ -32,7 +32,7 @@ const InstallmentStatusBadge: React.FC<{ status: string }> = ({ status }) => {
     const baseClasses = 'px-3 py-1 text-xs font-semibold rounded-full inline-block';
     const statusClasses: Record<string, string> = {
         PAGADO: 'bg-green-100 text-green-800',
-        PENDIENTE: 'bg-yellow-100 text-yellow-800',
+        'POR VENCER': 'bg-yellow-100 text-yellow-800',
         VENCIDO: 'bg-red-100 text-red-800',
         'EN VERIFICACIÓN': 'bg-blue-100 text-blue-800',
         'EN ESPERA': 'bg-purple-100 text-purple-800',
@@ -202,7 +202,7 @@ const LoanCard: React.FC<{ loan: Loan; onReportPayment: (loanId: string, install
                                         )}
                                     </td>
                                     <td className="px-4 py-4 text-center">
-                                        {inst.status === 'PENDIENTE' && (
+                                        {(inst.status === 'POR VENCER' || inst.status === 'VIGENTE') && (
                                             <button onClick={() => handleReportClick(inst.installmentNumber)} className="px-3 py-1 text-xs font-semibold text-white bg-[#4CAF50] rounded-md hover:bg-[#45a049] transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#4CAF50]">
                                                 Reportar Pago
                                             </button>
@@ -251,7 +251,7 @@ export const DashboardPage: React.FC = () => {
     const totalPendingBalance = useMemo(() => {
         return loans.reduce((total, loan) => {
             const pendingAmount = loan.installments
-                .filter(inst => inst.status === 'PENDIENTE' || inst.status === 'VENCIDO')
+                .filter(inst => inst.status === 'POR VENCER' || inst.status === 'VENCIDO')
                 .reduce((sum, inst) => sum + inst.amount, 0);
             return total + pendingAmount;
         }, 0);

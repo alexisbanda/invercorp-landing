@@ -17,7 +17,7 @@ export interface Installment {
     installmentNumber: number;
     dueDate: Date;
     amount: number;
-    status: 'PAGADO' | 'PENDIENTE' | 'VENCIDO' | 'EN VERIFICACIÓN' | 'EN ESPERA';
+    status: 'PAGADO' | 'POR VENCER' | 'VENCIDO' | 'EN VERIFICACIÓN' | 'EN ESPERA';
     paymentDate?: Date;
     receiptUrl?: string;
     adminNotes?: string;

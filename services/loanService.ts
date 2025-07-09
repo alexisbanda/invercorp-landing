@@ -139,7 +139,7 @@ export const reportPaymentForInstallment = async (
 export const resolvePayment = async (
     loanId: string,
     installmentNumber: number,
-    newStatus: 'PAGADO' | 'PENDIENTE', // Limitamos a los estados de resolución
+    newStatus: 'PAGADO' | 'POR VENCER', // Limitamos a los estados de resolución
     adminNotes: string
 ): Promise<void> => {
     const loanDocRef = doc(db, 'loans', loanId);
@@ -217,19 +217,19 @@ export const approvePayment = async (loanId: string, installmentNumber: number):
 };
 
 /**
- * Rechaza el pago de una cuota, devolviéndola al estado PENDIENTE.
+ * Rechaza el pago de una cuota, devolviéndola al estado POR VENCER.
  * Es una envoltura sobre `resolvePayment`.
  */
 export const rejectPayment = async (loanId: string, installmentNumber: number, reason: string): Promise<void> => {
     if (!reason) {
         throw new Error("El motivo del rechazo es obligatorio.");
     }
-    await resolvePayment(loanId, installmentNumber, 'PENDIENTE', `Rechazado: ${reason}`);
+    await resolvePayment(loanId, installmentNumber, 'POR VENCER', `Rechazado: ${reason}`);
 };
 
 /**
  * Obtiene una lista plana de todas las cuotas que requieren atención del admin.
- * Filtra por los estados: PENDIENTE, VENCIDO y EN VERIFICACIÓN.
+ * Filtra por los estados: POR VENCER, VENCIDO y EN VERIFICACIÓN.
  * Es más eficiente que obtener todos los préstamos y filtrar en el cliente.
  *
  * @returns Un array de cuotas, cada una con datos clave de su préstamo.
@@ -239,7 +239,7 @@ export const getPendingAdminInstallments = async (): Promise<(Installment & { lo
     const allLoans = await getAllLoansForAdmin();
 
     // 2. Definimos los estados que nos interesan.
-    const targetStatuses: Installment['status'][] = ['PENDIENTE', 'VENCIDO', 'EN VERIFICACIÓN'];
+    const targetStatuses: Installment['status'][] = ['POR VENCER', 'VENCIDO', 'EN VERIFICACIÓN'];
 
     // 3. Usamos flatMap para transformar la lista de préstamos en una lista de cuotas que cumplen la condición.
     const pendingInstallments = allLoans.flatMap(loan =>
