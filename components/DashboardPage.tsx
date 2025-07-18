@@ -1,11 +1,10 @@
 // /components/DashboardPage.tsx
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { signOut } from 'firebase/auth';
-import { auth } from '../firebase-config';
+import { Link } from 'react-router-dom';
 import { getLoansForCurrentUser, reportPaymentForInstallment } from '../services/loanService';
 import { Loan, LoanStatus } from '../types';
-import { Toaster, toast } from 'react-hot-toast'; // NUEVO: Importaciones para toasts
+import { toast } from 'react-hot-toast'; // NUEVO: Importaciones para toasts
 
 // --- Iconos para una UI más visual ---
 const DollarSignIcon: React.FC<{ className?: string }> = ({ className }) => (
@@ -289,16 +288,6 @@ export const DashboardPage: React.FC = () => {
         }
     };
 
-    const handleLogout = async () => {
-        try {
-            await signOut(auth);
-            toast.success('Has cerrado sesión.');
-        } catch (error) {
-            console.error("Error al cerrar sesión:", error);
-            toast.error('No se pudo cerrar la sesión.');
-        }
-    };
-
     const renderContent = () => {
         if (loading) {
             return <p className="text-center text-gray-500 py-10">Cargando información de tus préstamos...</p>;
@@ -327,37 +316,8 @@ export const DashboardPage: React.FC = () => {
     };
 
     return (
-        <div className="min-h-screen bg-gray-50">
-            <Toaster position="top-center" reverseOrder={false} />
-
-            <header className="bg-white shadow-sm sticky top-0 z-40">
-                <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-                    <div className="flex justify-between items-center py-4">
-                        <h1 className="text-xl font-bold text-gray-800">
-                            <span className="text-[#4CAF50]">INVERCOP</span>
-                            <span className="font-light text-gray-600"> | Portal de Cliente</span>
-                        </h1>
-                        <button onClick={handleLogout} className="px-4 py-2 text-sm font-semibold text-white bg-red-600 rounded-md hover:bg-red-700 transition-colors">
-                            Cerrar Sesión
-                        </button>
-                    </div>
-                </div>
-            </header>
-            <main className="container mx-auto p-4 sm:p-6 lg:p-8">
-                <div className="mb-8 p-6 bg-white rounded-lg shadow grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
-                    <div>
-                        <h2 className="text-2xl sm:text-3xl font-bold text-gray-800">Bienvenido de nuevo,</h2>
-                        <p className="text-lg text-gray-600 mt-1">{currentUser?.displayName || currentUser?.email}</p>
-                    </div>
-                    <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-r-lg flex flex-col justify-center">
-                        <p className="text-sm font-medium text-yellow-800">Saldo Pendiente Total</p>
-                        <p className="text-2xl font-bold text-yellow-900">
-                            {totalPendingBalance.toLocaleString('es-EC', { style: 'currency', currency: 'USD' })}
-                        </p>
-                    </div>
-                </div>
-                {renderContent()}
-            </main>
-        </div>
+        <>
+            {renderContent()}
+        </>
     );
 };

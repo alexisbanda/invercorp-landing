@@ -58,3 +58,47 @@ export interface Loan {
     statusHistory: StatusChange[];
     installments: Record<string, Installment>;
 }
+
+// --- NUEVO: AHORRO PROGRAMADO ---
+
+export enum ProgrammedSavingStatus {
+    ACTIVO = "Activo",
+    PAUSADO = "Pausado",
+    COMPLETADO = "Completado",
+    CANCELADO = "Cancelado",
+}
+
+export enum DepositStatus {
+    EN_VERIFICACION = "En Verificación",
+    CONFIRMADO = "Confirmado",
+    RECHAZADO = "Rechazado",
+}
+
+export interface Deposit {
+    depositId: string;
+    fechaDeposito: Date; // timestamp
+    montoDeposito: number;
+    comprobanteUrl?: string;
+    notaCliente?: string;
+    estadoDeposito: DepositStatus;
+    fechaVerificacion?: Date; // timestamp
+    adminVerificadorId?: string;
+    notaAdmin?: string;
+}
+
+export interface ProgrammedSaving {
+    numeroCartola: number; // ID
+    clienteId: string;
+    nombrePlan: string;
+    montoMeta: number;
+    frecuenciaDepositoSugerida: "Semanal" | "Mensual" | "Quincenal";
+    montoDepositoSugerido: number;
+    fechaInicioPlan: Date; // timestamp
+    fechaFinEstimada: Date; // timestamp
+    saldoActual: number;
+    estadoPlan: ProgrammedSavingStatus;
+    fechaCreacion: Date; // timestamp
+    ultimaActualizacion: Date; // timestamp
+    adminCreadorId: string;
+    depositos?: Deposit[]; // This could be a subcollection
+}

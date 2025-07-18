@@ -46,6 +46,7 @@ export const AdminHeader: React.FC = () => {
                             <div className="flex items-baseline space-x-4">
                                 <NavLink to="/portal/admin/management" className={navLinkClass}>Gestión</NavLink>
                                 <NavLink to="/portal/admin/reports" className={navLinkClass}>Reportes</NavLink>
+                                <NavLink to="/portal/admin/pending-deposits" className={navLinkClass}>Depósitos</NavLink>
                             </div>
                         </nav>
                     </div>
