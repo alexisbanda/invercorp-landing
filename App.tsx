@@ -70,14 +70,13 @@ function App() {
                     <Route path="/portal/admin/reports/loan-portfolio" element={<LoanPortfolioReportPage />} />
                     <Route path="/portal/admin/reports/delinquency" element={<DelinquencyReportPage />} />
                     <Route path="/portal/admin/pending-deposits" element={<PendingDepositsPage />} />
-                    {/* Rutas para Ahorros (previamente faltantes) */}
-                    <Route path="/portal/admin/savings" element={<SavingsManagementPage />} />
+                    {/* Rutas para Ahorros */}
+                    <Route path="/portal/admin/ahorros" element={<SavingsManagementPage />} />
                     <Route path="/portal/admin/savings/new" element={<AdminNewProgrammedSavingForm />} />
                     {/* Nuevas rutas para Clientes y Préstamos */}
                     <Route path="/portal/admin/clients/new" element={<NewClientPage />} />
                     <Route path="/portal/admin/loans/new" element={<AdminNewLoanForm />} />
-                    <Route path="/portal/admin/savings" element={<SavingsManagementPage />} />
-                    <Route path="/portal/admin/savings/new" element={<AdminNewProgrammedSavingForm />} />
+                    <Route path="/portal/admin/loans/:loanId" element={<LoanInstallmentsPage />} />
                 </Route>
             </Routes>
         </Router>

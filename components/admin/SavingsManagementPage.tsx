@@ -1,83 +1,68 @@
 // components/admin/SavingsManagementPage.tsx
-import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
 import { getAllProgrammedSavings } from '../../services/savingsService';
 import { ProgrammedSaving } from '../../types';
 
 const SavingsManagementPage: React.FC = () => {
     const [savings, setSavings] = useState<ProgrammedSaving[]>([]);
-    const [loading, setLoading] = useState<boolean>(true);
+    const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         const fetchSavings = async () => {
             try {
-                setLoading(true);
-                // Esta función necesitará ser creada en savingsService.ts
                 const allSavings = await getAllProgrammedSavings();
                 setSavings(allSavings);
-                setError(null);
             } catch (err) {
-                setError("Error al cargar los planes de ahorro.");
+                setError('Error al cargar los planes de ahorro.');
                 console.error(err);
             } finally {
-                setLoading(false);
+                setIsLoading(false);
             }
         };
 
         fetchSavings();
     }, []);
 
-    if (loading) {
-        return <div className="text-center p-8">Cargando todos los planes de ahorro...</div>;
+    if (isLoading) {
+        return <div className="p-6 text-center">Cargando planes de ahorro...</div>;
     }
 
     if (error) {
-        return <div className="text-center p-8 text-red-500">{error}</div>;
+        return <div className="p-6 text-center text-red-500">{error}</div>;
     }
 
     return (
-        <div className="container mx-auto p-4 md:p-8">
-            <div className="flex justify-between items-center mb-6">
-                <h1 className="text-3xl font-bold text-gray-800">Gestión de Ahorros Programados</h1>
-                <Link 
-                    to="/portal/admin/ahorros/nuevo" 
-                    className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-300"
-                >
-                    + Crear Nuevo Plan
-                </Link>
-            </div>
-
-            {savings.length === 0 ? (
-                <p className="text-center text-gray-500 py-10">No hay planes de ahorro registrados en el sistema.</p>
-            ) : (
-                <div className="bg-white shadow-lg rounded-xl overflow-hidden">
-                    <table className="min-w-full leading-normal">
-                        <thead className="bg-gray-100">
-                            <tr>
-                                <th className="px-5 py-3 border-b-2 border-gray-200 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Cliente ID</th>
-                                <th className="px-5 py-3 border-b-2 border-gray-200 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Nombre del Plan</th>
-                                <th className="px-5 py-3 border-b-2 border-gray-200 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Monto Meta</th>
-                                <th className="px-5 py-3 border-b-2 border-gray-200 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Saldo Actual</th>
-                                <th className="px-5 py-3 border-b-2 border-gray-200 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Estado</th>
+        <div className="p-6">
+            <h1 className="text-2xl font-bold mb-4">Gestión de Ahorros Programados</h1>
+            <div className="bg-white shadow-md rounded-lg overflow-hidden">
+                <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                        <tr>
+                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID Cliente</th>
+                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nombre del Plan</th>
+                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Monto Meta</th>
+                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Saldo Actual</th>
+                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
+                        </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                        {savings.map((saving) => (
+                            <tr key={saving.id}>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{saving.clienteId}</td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{saving.nombrePlan}</td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${saving.montoMeta.toFixed(2)}</td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${saving.saldoActual.toFixed(2)}</td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm">
+                                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${saving.estadoPlan === 'Activo' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                                        {saving.estadoPlan}
+                                    </span>
+                                </td>
                             </tr>
-                        </thead>
-                        <tbody>
-                            {savings.map((plan) => (
-                                <tr key={`${plan.clienteId}-${plan.numeroCartola}`} className="hover:bg-gray-50">
-                                    <td className="px-5 py-4 border-b border-gray-200 bg-white text-sm">{plan.clienteId}</td>
-                                    <td className="px-5 py-4 border-b border-gray-200 bg-white text-sm">{plan.nombrePlan}</td>
-                                    <td className="px-5 py-4 border-b border-gray-200 bg-white text-sm">${plan.montoMeta.toLocaleString()}</td>
-                                    <td className="px-5 py-4 border-b border-gray-200 bg-white text-sm font-semibold">${plan.saldoActual.toLocaleString()}</td>
-                                    <td className="px-5 py-4 border-b border-gray-200 bg-white text-sm">
-                                        <span className={`font-semibold ${plan.estadoPlan === 'Activo' ? 'text-green-600' : 'text-yellow-600'}`}>{plan.estadoPlan}</span>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-            )}
+                        ))}
+                    </tbody>
+                </table>
+            </div>
         </div>
     );
 };
