@@ -1,265 +1,338 @@
-// services/loanService.ts
+// src/services/loanService.ts
 import {
+    doc,
+    setDoc,
     collection,
+    getDoc,
     query,
     where,
     getDocs,
-    orderBy,
-    doc,
-    getDoc,
     updateDoc,
-    FieldValue,
-    arrayUnion,
-    Timestamp
+    arrayUnion
 } from 'firebase/firestore';
-import { db } from '../firebase-config';
-import { Loan, Installment, LoanStatus } from '../types';
+import { db, auth } from '../firebase-config';
+import { Loan, Installment, LoanStatus, StatusChange } from '../types';
+import { addMonths } from 'date-fns';
 
-// --- FUNCIÓN DE AYUDA REUTILIZABLE ---
-const docToLoan = (doc: any): Loan => {
-    const data = doc.data();
-    const installmentsSource = Array.isArray(data.installments) ? data.installments : [];
-    const formattedInstallments = installmentsSource.map((inst: any) => ({
-        ...inst,
-        dueDate: inst.dueDate?.toDate(),
-        paymentDate: inst.paymentDate?.toDate(),
-        paymentReportDate: inst.paymentReportDate?.toDate(), // Aseguramos convertir todas las fechas
-        paymentConfirmationDate: inst.paymentConfirmationDate?.toDate(),
-    }));
+/**
+ * NOTA IMPORTANTE:
+ * Para que este servicio funcione, tu tipo `Loan` en `types.ts` debe usar un array
+ * para las cuotas, así: `installments: Installment[];` (Ya corregido en el paso anterior).
+ * Esto es para mantener la consistencia con tu script de importación `importGeneral.js`.
+ * Además, debe incluir: `userCedula`, `installmentsTotal`, `installmentAmount`.
+ */
 
-    return {
-        id: doc.id,
-        userId: data.userId,
-        userName: data.userName,
-        userEmail: data.userEmail,
-        loanAmount: data.loanAmount,
-        currency: data.currency,
-        applicationDate: data.applicationDate?.toDate(),
-        disbursementDate: data.disbursementDate?.toDate(),
-        status: data.status as LoanStatus,
-        statusHistory: data.statusHistory || [],
-        installments: formattedInstallments,
-    } as Loan;
+// Interface para los datos que vienen del formulario de nuevo préstamo
+export interface NewLoanFormData {
+    userId: string;
+    userName: string;
+    userEmail: string;
+    userCedula: string;
+    loanAmount: number;
+    interestRate: number; // Tasa de interés anual en porcentaje (ej. 15 para 15%)
+    termInMonths: number;
+    paymentFrequency: 'Mensual' | 'Quincenal' | 'Semanal';
+    disbursementDate: string; // Formato YYYY-MM-DD
 }
+
+/**
+ * Calcula la tabla de amortización para un préstamo usando el sistema francés (cuotas fijas).
+ */
+function calculateAmortization(
+    principal: number,
+    annualRate: number,
+    termInMonths: number,
+    startDate: Date
+): { installments: Installment[], installmentAmount: number } {
+    const monthlyRate = annualRate / 100 / 12;
+    // Fórmula para el pago mensual (EMI)
+    const monthlyPayment = (principal * monthlyRate * Math.pow(1 + monthlyRate, termInMonths)) / (Math.pow(1 + monthlyRate, termInMonths) - 1);
+
+    let balance = principal;
+    const installments: Installment[] = [];
+
+    for (let i = 1; i <= termInMonths; i++) {
+        const interestForMonth = balance * monthlyRate;
+        const principalForMonth = monthlyPayment - interestForMonth;
+        balance -= principalForMonth;
+
+        // Asegura que el último pago salde el balance exactamente
+        const paymentAmount = (i === termInMonths) ? principalForMonth + interestForMonth + balance : monthlyPayment;
+
+        installments.push({
+            installmentNumber: i,
+            dueDate: addMonths(startDate, i),
+            amount: parseFloat(paymentAmount.toFixed(2)),
+            status: 'POR VENCER', // Estado inicial
+        });
+    }
+
+    return { installments, installmentAmount: parseFloat(monthlyPayment.toFixed(2)) };
+}
+
+
+/**
+ * Crea un nuevo préstamo, calcula su tabla de amortización y lo guarda en Firestore.
+ */
+export const createLoan = async (data: NewLoanFormData): Promise<string> => {
+    const {
+        userId, userName, userEmail, userCedula,
+        loanAmount, interestRate, termInMonths,
+        disbursementDate: disbursementDateString,
+    } = data;
+
+    const loanCollectionRef = collection(db, 'loans');
+    const newLoanRef = doc(loanCollectionRef); // Auto-genera un ID
+    const newLoanId = newLoanRef.id;
+
+    const disbursementDate = new Date(disbursementDateString + 'T00:00:00'); // Evita problemas de zona horaria
+    const applicationDate = new Date();
+
+    const { installments, installmentAmount } = calculateAmortization(
+        loanAmount, interestRate, termInMonths, disbursementDate
+    );
+
+    const statusHistory: StatusChange[] = [{
+        status: LoanStatus.SOLICITADO,
+        date: applicationDate,
+        notes: 'Préstamo creado desde el portal de administración.',
+        updatedBy: 'sistema',
+    }, {
+        status: LoanStatus.DESEMBOLSADO,
+        date: disbursementDate,
+        notes: 'Préstamo desembolsado automáticamente al ser creado.',
+        updatedBy: 'sistema',
+    }];
+
+    const newLoan: Omit<Loan, 'id'> = {
+        userId, userName, userEmail, userCedula, loanAmount,
+        currency: 'USD',
+        applicationDate, disbursementDate,
+        status: LoanStatus.DESEMBOLSADO,
+        statusHistory,
+        installmentsTotal: installments.length,
+        installmentAmount,
+        installments, // Guardamos como un array, igual que el importador
+    };
+
+    await setDoc(newLoanRef, newLoan);
+    return newLoanId;
+};
+
+/**
+ * Obtiene todos los préstamos para un ID de usuario específico.
+ */
+export const getLoansForUser = async (userId: string): Promise<Loan[]> => {
+    const loansRef = collection(db, 'loans');
+    const q = query(loansRef, where('userId', '==', userId));
+    const querySnapshot = await getDocs(q);
+    
+    return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Loan));
+};
+
+/**
+ * Obtiene los préstamos del usuario actualmente autenticado.
+ * ESTA FUNCIÓN SOLUCIONA EL ERROR.
+ */
+export const getLoansForCurrentUser = async (): Promise<Loan[]> => {
+    const user = auth.currentUser;
+    if (!user) {
+        console.log("No hay un usuario autenticado.");
+        return [];
+    }
+    return getLoansForUser(user.uid);
+};
 
 /**
  * Obtiene un préstamo específico por su ID.
  */
 export const getLoanById = async (loanId: string): Promise<Loan | null> => {
     const loanRef = doc(db, 'loans', loanId);
-    const loanSnap = await getDoc(loanRef);
+    const docSnap = await getDoc(loanRef);
 
-    if (!loanSnap.exists()) {
-        console.warn(`No se encontró el préstamo con ID: ${loanId}`);
-        return null;
+    if (docSnap.exists()) {
+        return { id: docSnap.id, ...docSnap.data() } as Loan;
     }
-
-    return docToLoan(loanSnap);
-};
-
-
-/**
- * Obtiene los préstamos de un usuario específico para el portal de cliente.
- */
-export const getLoansForCurrentUser = async (userId: string): Promise<Loan[]> => {
-    // ... (código existente sin cambios)
-    const loansCollectionRef = collection(db, 'loans');
-    const q = query(
-        loansCollectionRef,
-        where('userId', '==', userId),
-        orderBy('applicationDate', 'desc')
-    );
-
-    const querySnapshot = await getDocs(q);
-
-    if (querySnapshot.empty) {
-        return [];
-    }
-
-    const loans = querySnapshot.docs.map(docToLoan);
-    return loans;
+    return null;
 };
 
 /**
- * Obtiene TODOS los préstamos de la base de datos para el panel de admin.
+ * Obtiene todos los préstamos de la base de datos (solo para admins).
  */
-export const getAllLoansForAdmin = async (): Promise<Loan[]> => {
-    // ... (código existente sin cambios)
+export const getAllLoans = async (): Promise<Loan[]> => {
     const loansRef = collection(db, 'loans');
-    const q = query(loansRef, orderBy('applicationDate', 'desc'));
-    const querySnapshot = await getDocs(q);
-    const allLoans: Loan[] = querySnapshot.docs.map(docToLoan);
-    return allLoans;
+    const querySnapshot = await getDocs(loansRef);
+    return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Loan));
 };
 
-
 /**
- * Reporta el pago de una cuota, actualizando su estado y añadiendo notas.
+ * Reporta un pago para una cuota específica de un préstamo.
+ * @param loanId El ID del préstamo.
+ * @param installmentNumber El número de la cuota a pagar.
+ * @param paymentData Los datos del pago (URL del recibo y notas).
  */
 export const reportPaymentForInstallment = async (
-    // ... (código existente sin cambios)
     loanId: string,
     installmentNumber: number,
-    reportData: { paymentReportNotes: string }
-) => {
+    paymentData: { receiptUrl: string; notes?: string }
+): Promise<void> => {
     const loanRef = doc(db, 'loans', loanId);
     const loanSnap = await getDoc(loanRef);
 
     if (!loanSnap.exists()) {
-        throw new Error("El préstamo no fue encontrado.");
+        throw new Error(`No se encontró el préstamo con ID: ${loanId}`);
     }
 
-    const installments = loanSnap.data().installments || [];
-    if (!Array.isArray(installments)) {
-        throw new Error(`Los datos de cuotas para el préstamo ${loanId} están corruptos.`);
-    }
+    const loan = loanSnap.data() as Loan;
 
-    const updatedInstallments = installments.map(inst => {
-        if (inst.installmentNumber === installmentNumber) {
-            return {
-                ...inst,
-                status: 'EN VERIFICACIÓN',
-                paymentReportDate: Timestamp.fromDate(new Date()),
-                paymentReportNotes: reportData.paymentReportNotes,
-                adminNotes: '',
-            };
-        }
-        return inst;
-    });
-
-    await updateDoc(loanRef, {
-        installments: updatedInstallments
-    });
-};
-
-/**
- * Resuelve un pago reportado (acción del admin).
- * Esta es una función genérica que puede ser usada para aprobar o rechazar.
- */
-export const resolvePayment = async (
-    loanId: string,
-    installmentNumber: number,
-    newStatus: 'PAGADO' | 'POR VENCER', // Limitamos a los estados de resolución
-    adminNotes: string
-): Promise<void> => {
-    const loanDocRef = doc(db, 'loans', loanId);
-    const loanSnap = await getDoc(loanDocRef);
-
-    if (!loanSnap.exists()) {
-        throw new Error("Préstamo no encontrado.");
-    }
-
-    const currentInstallments = loanSnap.data().installments || [];
-    if (!Array.isArray(currentInstallments)) {
-        throw new Error(`Los datos de cuotas para el préstamo ${loanId} están corruptos.`);
-    }
-
-    const updatedInstallments = currentInstallments.map((inst: Installment) => {
-        if (inst.installmentNumber === installmentNumber) {
-            const update: Partial<Installment> = {
-                status: newStatus,
-                adminNotes: adminNotes || '',
-            };
-            if (newStatus === 'PAGADO') {
-                update.paymentConfirmationDate = new Date(); // Se convierte a Timestamp en Firestore
-                update.paymentDate = inst.paymentReportDate?.toDate() || new Date(); // Asumimos la fecha de reporte como la de pago
-            } else {
-                // Si se rechaza, limpiamos los datos del reporte de pago
-                update.paymentReportDate = null;
-                update.paymentReportNotes = '';
-            }
-            return { ...inst, ...update };
-        }
-        return inst;
-    });
-
-    await updateDoc(loanDocRef, {
-        installments: updatedInstallments
-    });
-};
-
-/**
- * Actualiza el estado de un préstamo completo (acción del admin).
- */
-export const updateLoanStatus = async (
-    // ... (código existente sin cambios)
-    loanId: string,
-    newStatus: LoanStatus,
-    adminId: string,
-    notes: string
-): Promise<void> => {
-    const loanDocRef = doc(db, 'loans', loanId);
-    const newStatusEntry = {
-        status: newStatus,
-        date: new Date(),
-        updatedBy: adminId,
-        notes: notes,
-    };
-    const updateData: any = {
-        status: newStatus,
-        statusHistory: arrayUnion(newStatusEntry),
-    };
-    if (newStatus === LoanStatus.DESEMBOLSADO) {
-        updateData.disbursementDate = new Date();
-    }
-    await updateDoc(loanDocRef, updateData);
-};
-
-
-// --- NUEVAS FUNCIONES PARA EL COMPONENTE ADMIN ---
-
-/**
- * Aprueba el pago de una cuota.
- * Es una envoltura sobre `resolvePayment` para mayor claridad en el componente.
- */
-export const approvePayment = async (loanId: string, installmentNumber: number): Promise<void> => {
-    await resolvePayment(loanId, installmentNumber, 'PAGADO', 'Pago aprobado por el administrador.');
-};
-
-/**
- * Rechaza el pago de una cuota, devolviéndola al estado POR VENCER.
- * Es una envoltura sobre `resolvePayment`.
- */
-export const rejectPayment = async (loanId: string, installmentNumber: number, reason: string): Promise<void> => {
-    if (!reason) {
-        throw new Error("El motivo del rechazo es obligatorio.");
-    }
-    await resolvePayment(loanId, installmentNumber, 'POR VENCER', `Rechazado: ${reason}`);
-};
-
-/**
- * Obtiene una lista plana de todas las cuotas que requieren atención del admin.
- * Filtra por los estados: POR VENCER, VENCIDO y EN VERIFICACIÓN.
- * Es más eficiente que obtener todos los préstamos y filtrar en el cliente.
- *
- * @returns Un array de cuotas, cada una con datos clave de su préstamo.
- */
-export const getPendingAdminInstallments = async (): Promise<(Installment & { loanId: string; userName: string; userEmail: string })[]> => {
-    // 1. Obtenemos todos los préstamos.
-    const allLoans = await getAllLoansForAdmin();
-
-    // 2. Definimos los estados que nos interesan.
-    const targetStatuses: Installment['status'][] = ['POR VENCER', 'VENCIDO', 'EN VERIFICACIÓN'];
-
-    // 3. Usamos flatMap para transformar la lista de préstamos en una lista de cuotas que cumplen la condición.
-    const pendingInstallments = allLoans.flatMap(loan =>
-        loan.installments
-            .filter(inst => targetStatuses.includes(inst.status))
-            .map(inst => ({
-                ...inst, // Copiamos todos los datos de la cuota
-                // Y añadimos la información relevante del préstamo padre
-                loanId: loan.id,
-                userName: loan.userName,
-                userEmail: loan.userEmail,
-            }))
+    // Encontrar la cuota específica en el array
+    const installmentIndex = loan.installments.findIndex(
+        (inst) => inst.installmentNumber === installmentNumber
     );
 
-    // 4. Opcional: Ordenamos las cuotas por fecha de vencimiento para mostrar las más urgentes primero.
-    pendingInstallments.sort((a, b) => {
-        const dateA = a.dueDate?.getTime() || 0;
-        const dateB = b.dueDate?.getTime() || 0;
-        return dateA - dateB; // Orden ascendente
+    if (installmentIndex === -1) {
+        throw new Error(`No se encontró la cuota número ${installmentNumber} en el préstamo ${loanId}`);
+    }
+    
+    // Clonar el array de cuotas para no mutar el estado directamente
+    const updatedInstallments = [...loan.installments];
+
+    // Actualizar la cuota
+    updatedInstallments[installmentIndex] = {
+        ...updatedInstallments[installmentIndex],
+        status: 'EN VERIFICACIÓN',
+        receiptUrl: paymentData.receiptUrl,
+        paymentReportNotes: paymentData.notes,
+        paymentReportDate: new Date(),
+    };
+
+    // Actualizar el documento del préstamo en Firestore
+    await updateDoc(loanRef, {
+        installments: updatedInstallments,
     });
+};
+
+/**
+ * Obtiene todas las cuotas pendientes de verificación por parte de un administrador.
+ * @returns Un array de cuotas en estado 'EN VERIFICACIÓN' con información del préstamo y cliente.
+ */
+export const getPendingAdminInstallments = async (): Promise<any[]> => {
+    // Usamos la función existente para obtener todos los préstamos.
+    const allLoans = await getAllLoans();
+
+    const pendingInstallments: any[] = [];
+
+    // Iteramos sobre cada préstamo para encontrar cuotas pendientes.
+    for (const loan of allLoans) {
+        const pendingInThisLoan = loan.installments.filter(
+            (inst) => inst.status === 'EN VERIFICACIÓN'
+        );
+
+        // Si encontramos cuotas pendientes, las enriquecemos con datos del préstamo y cliente.
+        if (pendingInThisLoan.length > 0) {
+            for (const inst of pendingInThisLoan) {
+                pendingInstallments.push({
+                    ...inst,
+                    loanId: loan.id,
+                    userId: loan.userId,
+                    userName: loan.userName,
+                    userCedula: loan.userCedula,
+                });
+            }
+        }
+    }
 
     return pendingInstallments;
+};
+
+/**
+ * Aprueba un pago reportado para una cuota.
+ * @param loanId El ID del préstamo.
+ * @param installmentNumber El número de la cuota.
+ */
+export const approvePayment = async (loanId: string, installmentNumber: number): Promise<void> => {
+    const loanRef = doc(db, 'loans', loanId);
+    const loanSnap = await getDoc(loanRef);
+
+    if (!loanSnap.exists()) {
+        throw new Error(`No se encontró el préstamo con ID: ${loanId}`);
+    }
+
+    const loan = loanSnap.data() as Loan;
+    const installmentIndex = loan.installments.findIndex(
+        (inst) => inst.installmentNumber === installmentNumber
+    );
+
+    if (installmentIndex === -1) {
+        throw new Error(`No se encontró la cuota número ${installmentNumber} en el préstamo ${loanId}`);
+    }
+
+    const updatedInstallments = [...loan.installments];
+    updatedInstallments[installmentIndex] = {
+        ...updatedInstallments[installmentIndex],
+        status: 'PAGADO',
+        paymentDate: new Date(), // Fecha de confirmación del pago
+        adminNotes: `Pago aprobado por ${auth.currentUser?.email || 'admin'}.`,
+    };
+
+    // Verificar si todas las cuotas están pagadas para completar el préstamo
+    const allPaid = updatedInstallments.every(inst => inst.status === 'PAGADO');
+    
+    const updateData: { installments: Installment[], status?: LoanStatus, statusHistory?: any } = {
+        installments: updatedInstallments,
+    };
+
+    if (allPaid && loan.status !== LoanStatus.COMPLETADO) {
+        const statusUpdate: StatusChange = {
+            status: LoanStatus.COMPLETADO,
+            date: new Date(),
+            notes: 'Todas las cuotas han sido pagadas.',
+            updatedBy: auth.currentUser?.email || 'sistema',
+        };
+        updateData.status = LoanStatus.COMPLETADO;
+        updateData.statusHistory = arrayUnion(statusUpdate);
+    }
+
+    await updateDoc(loanRef, updateData);
+};
+
+/**
+ * Rechaza un pago reportado para una cuota.
+ * @param loanId El ID del préstamo.
+ * @param installmentNumber El número de la cuota.
+ * @param reason El motivo del rechazo.
+ */
+export const rejectPayment = async (loanId: string, installmentNumber: number, reason: string): Promise<void> => {
+    const loanRef = doc(db, 'loans', loanId);
+    const loanSnap = await getDoc(loanRef);
+
+    if (!loanSnap.exists()) {
+        throw new Error(`No se encontró el préstamo con ID: ${loanId}`);
+    }
+
+    const loan = loanSnap.data() as Loan;
+    const installmentIndex = loan.installments.findIndex(
+        (inst) => inst.installmentNumber === installmentNumber
+    );
+
+    if (installmentIndex === -1) {
+        throw new Error(`No se encontró la cuota número ${installmentNumber} en el préstamo ${loanId}`);
+    }
+
+    const originalInstallment = loan.installments[installmentIndex];
+    const isOverdue = new Date(originalInstallment.dueDate) < new Date();
+
+    const updatedInstallments = [...loan.installments];
+    updatedInstallments[installmentIndex] = {
+        ...originalInstallment,
+        status: isOverdue ? 'VENCIDO' : 'POR VENCER',
+        receiptUrl: undefined, // Limpiar datos del reporte
+        paymentReportDate: undefined,
+        paymentReportNotes: undefined,
+        adminNotes: `Rechazado por ${auth.currentUser?.email || 'admin'}: ${reason}`,
+    };
+
+    await updateDoc(loanRef, {
+        installments: updatedInstallments,
+    });
 };

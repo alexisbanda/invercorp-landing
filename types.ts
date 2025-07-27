@@ -11,6 +11,7 @@ export interface UserProfile {
     email: string;
     name: string;
     role: UserRole;
+    cedula: string;
 }
 
 export interface Installment {
@@ -56,7 +57,11 @@ export interface Loan {
     disbursementDate?: Date; // Puede que no exista si aún no se desembolsa
     status: LoanStatus;
     statusHistory: StatusChange[];
-    installments: Record<string, Installment>;
+    // CORRECCIÓN: Se usa un array para ser consistente con el importador y la creación de préstamos.
+    installments: Installment[];
+    userCedula: string;
+    installmentsTotal: number;
+    installmentAmount: number;
 }
 
 // --- NUEVO: AHORRO PROGRAMADO ---

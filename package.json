@@ -8,7 +8,10 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@netlify/functions": "^4.1.15",
+    "date-fns": "^4.1.0",
     "firebase": "^11.10.0",
+    "firebase-admin": "^13.4.0",
     "netlify-cli": "^21.6.0",
     "node-fetch": "^3.3.2",
     "papaparse": "^5.5.3",

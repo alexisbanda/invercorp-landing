@@ -22,6 +22,7 @@ export const getUserProfile = async (uid: string): Promise<UserProfile | null> =
         id: userSnap.id,
         email: data.email,
         name: data.name,
+        cedula: data.cedula,
         // Aseguramos que el rol por defecto sea 'client' si no está definido
         role: data.role || UserRole.CLIENT,
     } as UserProfile;

@@ -35,14 +35,14 @@ const Header: React.FC = () => {
             <a
               href="/portal/login"
               className="bg-green-500 text-white font-bold px-4 py-2 rounded-lg hover:bg-green-600 flex items-center justify-center"
-              aria-label="Portal Clientes"
+              aria-label="Portal"
             >
               {/* Icono de usuario mejorado */}
               <svg className="h-6 w-6 md:hidden" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                 <circle cx="12" cy="8" r="4" stroke="currentColor" strokeWidth="2" />
                 <path strokeLinecap="round" strokeLinejoin="round" d="M4 20c0-2.21 3.582-4 8-4s8 1.79 8 4" />
               </svg>
-              <span className="hidden md:inline">Portal Clientes</span>
+              <span className="hidden md:inline">Portal</span>
             </a>
           )}
           <button 

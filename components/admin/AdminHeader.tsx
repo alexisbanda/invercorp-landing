@@ -5,6 +5,7 @@ import { Link, NavLink } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { signOut } from 'firebase/auth';
 import { auth } from '../../firebase-config';
+import NewEntryButton from './NewEntryButton';
 
 export const AdminHeader: React.FC = () => {
     const { currentUser } = useAuth();
@@ -50,24 +51,27 @@ export const AdminHeader: React.FC = () => {
                             </div>
                         </nav>
                     </div>
-                    <div className="relative" ref={menuRef}>
-                        <button
-                            onClick={() => setIsMenuOpen(!isMenuOpen)}
-                            className="flex items-center text-sm rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 focus:ring-white"
-                        >
-                            <span className="mr-2 hidden sm:inline">{currentUser?.email}</span>
-                            <i className="fas fa-user-circle fa-2x"></i>
-                        </button>
-                        {isMenuOpen && (
-                            <div className="origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg py-1 bg-white ring-1 ring-black ring-opacity-5">
-                                <button
-                                    onClick={handleLogout}
-                                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                                >
-                                    Cerrar Sesión
-                                </button>
-                            </div>
-                        )}
+                    <div className="flex items-center">
+                        <NewEntryButton />
+                        <div className="relative ml-4" ref={menuRef}>
+                            <button
+                                onClick={() => setIsMenuOpen(!isMenuOpen)}
+                                className="flex items-center text-sm rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 focus:ring-white"
+                            >
+                                <span className="mr-2 hidden sm:inline">{currentUser?.email}</span>
+                                <i className="fas fa-user-circle fa-2x"></i>
+                            </button>
+                            {isMenuOpen && (
+                                <div className="origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg py-1 bg-white ring-1 ring-black ring-opacity-5 z-20">
+                                    <button
+                                        onClick={handleLogout}
+                                        className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                                    >
+                                        Cerrar Sesión
+                                    </button>
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
             </div>

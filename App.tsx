@@ -28,6 +28,8 @@ import { LoanPortfolioReportPage } from './components/admin/reports/LoanPortfoli
 import { DelinquencyReportPage } from './components/admin/reports/DelinquencyReportPage';
 import SavingsManagementPage from './components/admin/SavingsManagementPage';
 import AdminNewProgrammedSavingForm from './components/admin/AdminNewProgrammedSavingForm';
+import NewClientPage from './components/admin/NewClientPage';
+import AdminNewLoanForm from './components/admin/AdminNewLoanForm';
 
 function App() {
     return (
@@ -68,6 +70,14 @@ function App() {
                     <Route path="/portal/admin/reports/loan-portfolio" element={<LoanPortfolioReportPage />} />
                     <Route path="/portal/admin/reports/delinquency" element={<DelinquencyReportPage />} />
                     <Route path="/portal/admin/pending-deposits" element={<PendingDepositsPage />} />
+                    {/* Rutas para Ahorros (previamente faltantes) */}
+                    <Route path="/portal/admin/savings" element={<SavingsManagementPage />} />
+                    <Route path="/portal/admin/savings/new" element={<AdminNewProgrammedSavingForm />} />
+                    {/* Nuevas rutas para Clientes y Préstamos */}
+                    <Route path="/portal/admin/clients/new" element={<NewClientPage />} />
+                    <Route path="/portal/admin/loans/new" element={<AdminNewLoanForm />} />
+                    <Route path="/portal/admin/savings" element={<SavingsManagementPage />} />
+                    <Route path="/portal/admin/savings/new" element={<AdminNewProgrammedSavingForm />} />
                 </Route>
             </Routes>
         </Router>
