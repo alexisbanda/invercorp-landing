@@ -232,6 +232,50 @@ export const getPendingDeposits = async (): Promise<any[]> => {
 };
 
 /**
+ * Un administrador registra un depósito manual que se confirma inmediatamente.
+ * @param userId - El ID del cliente.
+ * @param numeroCartola - El ID del plan de ahorro.
+ * @param depositData - Datos del depósito manual (monto, nota del admin).
+ * @param adminId - El ID del administrador que registra.
+ */
+export const addManualDepositByAdmin = async (
+    userId: string,
+    numeroCartola: number,
+    depositData: { montoDeposito: number; notaAdmin?: string },
+    adminId: string
+): Promise<void> => {
+    const planRef = doc(db, `users/${userId}/ahorrosProgramados`, String(numeroCartola));
+    const depositsRef = collection(planRef, 'depositos');
+    const newDepositRef = doc(depositsRef); // Genera un nuevo ID para el depósito
+
+    await runTransaction(db, async (transaction) => {
+        const planDoc = await transaction.get(planRef);
+        if (!planDoc.exists()) {
+            throw new Error("El plan de ahorro no existe.");
+        }
+
+        const planData = planDoc.data() as ProgrammedSaving;
+        const newSaldo = (planData.saldoActual || 0) + depositData.montoDeposito;
+
+        const newDeposit: Deposit = {
+            depositId: newDepositRef.id,
+            montoDeposito: depositData.montoDeposito,
+            fechaDeposito: new Date(),
+            estadoDeposito: DepositStatus.CONFIRMADO,
+            adminVerificadorId: adminId,
+            fechaVerificacion: new Date(),
+            notaAdmin: depositData.notaAdmin || 'Depósito manual registrado por administrador.',
+        };
+        transaction.set(newDepositRef, newDeposit);
+
+        transaction.update(planRef, {
+            saldoActual: newSaldo,
+            ultimaActualizacion: new Date()
+        });
+    });
+};
+
+/**
  * Obtiene todos los planes de ahorro de todos los usuarios (solo para admins).
  * @returns Un array con todos los planes de ahorro.
  */

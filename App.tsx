@@ -28,6 +28,7 @@ import { LoanPortfolioReportPage } from './components/admin/reports/LoanPortfoli
 import { DelinquencyReportPage } from './components/admin/reports/DelinquencyReportPage';
 import SavingsManagementPage from './components/admin/SavingsManagementPage';
 import AdminNewProgrammedSavingForm from './components/admin/AdminNewProgrammedSavingForm';
+import AdminProgrammedSavingDetailPage from './components/admin/AdminProgrammedSavingDetailPage';
 import NewClientPage from './components/admin/NewClientPage';
 import AdminNewLoanForm from './components/admin/AdminNewLoanForm';
 
@@ -71,7 +72,8 @@ function App() {
                     <Route path="/portal/admin/reports/delinquency" element={<DelinquencyReportPage />} />
                     <Route path="/portal/admin/pending-deposits" element={<PendingDepositsPage />} />
                     {/* Rutas para Ahorros */}
-                    <Route path="/portal/admin/ahorros" element={<SavingsManagementPage />} />
+                    <Route path="/portal/admin/savings" element={<SavingsManagementPage />} />
+                    <Route path="/portal/admin/savings/:clienteId/:numeroCartola" element={<AdminProgrammedSavingDetailPage />} />
                     <Route path="/portal/admin/savings/new" element={<AdminNewProgrammedSavingForm />} />
                     {/* Nuevas rutas para Clientes y Préstamos */}
                     <Route path="/portal/admin/clients/new" element={<NewClientPage />} />
