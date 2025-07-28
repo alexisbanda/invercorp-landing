@@ -2,10 +2,9 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import toast, { Toaster } from 'react-hot-toast';
-import { createLoan } from '../../services/loanService';
+import { createLoan } from '../../services/loanService'; // Assuming createLoan can handle termValue and paymentFrequency
 import { getAllClients, getUserProfile } from '../../services/userService';
 import { UserProfile } from '../../types';
-
 
 // Hook para parsear query params de la URL
 const useQuery = () => {
@@ -25,13 +24,29 @@ const AdminNewLoanForm: React.FC = () => {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
+    // Estado del formulario ajustado para la nueva lógica de plazo
     const [formData, setFormData] = useState({
         loanAmount: 1000,
         interestRate: 15, // Tasa de interés anual
-        termInMonths: 12, // Plazo en meses
-        paymentFrequency: 'Mensual',
+        paymentFrequency: 'Mensual', // Frecuencia de pago seleccionada
+        termValue: 12, // Valor del plazo (ej. 12 meses, 24 quincenas, 48 semanas)
         disbursementDate: new Date().toISOString().split('T')[0], // Fecha de desembolso, formato YYYY-MM-DD
     });
+
+    // Estado derivado para la unidad de plazo a mostrar en la UI
+    const getTermUnit = (frequency: string) => {
+        switch (frequency) {
+            case 'Semanal':
+                return 'semanas';
+            case 'Quincenal':
+                return 'quincenas';
+            case 'Mensual':
+            default:
+                return 'meses';
+        }
+    };
+
+    const [termUnit, setTermUnit] = useState<string>(getTermUnit(formData.paymentFrequency));
 
     // Cargar lista de todos los clientes al montar el componente
     useEffect(() => {
@@ -79,17 +94,30 @@ const AdminNewLoanForm: React.FC = () => {
         fetchClientData();
     }, [selectedClientId]);
 
+    // Actualizar la unidad de plazo cuando cambia la frecuencia de pago
+    useEffect(() => {
+        setTermUnit(getTermUnit(formData.paymentFrequency));
+    }, [formData.paymentFrequency]);
+
+
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         const { name, value } = e.target;
-        setFormData(prev => ({
-            ...prev,
-            [name]: ['loanAmount', 'interestRate', 'termInMonths'].includes(name) ? Number(value) : value,
-        }));
+        setFormData(prev => {
+            let newValue: string | number = value;
+            if (['loanAmount', 'interestRate', 'termValue'].includes(name)) {
+                newValue = Number(value);
+            }
+            return {
+                ...prev,
+                [name]: newValue,
+            };
+        });
     };
 
     const handleClientSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
         const newClientId = e.target.value;
         setSelectedClientId(newClientId);
+        // Actualizar la URL para reflejar el cliente seleccionado
         const url = newClientId ? `/portal/admin/loans/new?clientId=${newClientId}` : '/portal/admin/loans/new';
         navigate(url, { replace: true });
     };
@@ -101,7 +129,8 @@ const AdminNewLoanForm: React.FC = () => {
             return;
         }
 
-        if (formData.loanAmount <= 0 || formData.interestRate <= 0 || formData.termInMonths <= 0) {
+        // Validaciones básicas del formulario
+        if (formData.loanAmount <= 0 || formData.interestRate <= 0 || formData.termValue <= 0) {
             toast.error('Por favor, completa todos los campos con valores válidos.');
             return;
         }
@@ -110,16 +139,22 @@ const AdminNewLoanForm: React.FC = () => {
         const toastId = toast.loading('Creando préstamo y generando cuotas...');
 
         try {
+            // Se asume que createLoan ahora acepta termValue y paymentFrequency
+            // y que la lógica para calcular el número total de períodos se manejará en el servicio.
             const newLoanId = await createLoan({
                 userId: selectedClientId,
                 userName: client.name,
                 userEmail: client.email,
                 userCedula: client.cedula,
-                ...formData,
+                loanAmount: formData.loanAmount,
+                interestRate: formData.interestRate,
+                paymentFrequency: formData.paymentFrequency, // Pasa la frecuencia
+                termValue: formData.termValue, // Pasa el valor del plazo
+                disbursementDate: formData.disbursementDate,
             });
 
             toast.success(`Préstamo ${newLoanId} creado con éxito.`, { id: toastId });
-            navigate(`/portal/admin/loans/${newLoanId}`);
+            navigate(`/portal/admin/loans/${newLoanId}`); // Navega al detalle del nuevo préstamo
 
         } catch (err) {
             toast.error((err as Error).message || 'Error al crear el préstamo.', { id: toastId });
@@ -129,25 +164,34 @@ const AdminNewLoanForm: React.FC = () => {
         }
     };
 
+    // Muestra un estado de carga mientras se obtienen los clientes
     if (isLoadingClients) {
-        return <div className="p-6 text-center">Cargando lista de clientes...</div>;
+        return (
+            <div className="flex items-center justify-center min-h-screen bg-gray-100">
+                <div className="text-center text-gray-700">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+                    Cargando lista de clientes...
+                </div>
+            </div>
+        );
     }
 
     return (
-        <div className="p-6">
+        <div className="p-6 bg-gray-100 min-h-screen flex items-center justify-center">
             <Toaster position="top-right" />
-            <h1 className="text-2xl font-bold mb-4">Nuevo Préstamo</h1>
+            <div className="max-w-2xl w-full bg-white p-8 rounded-lg shadow-xl border border-gray-200">
+                <h1 className="text-3xl font-extrabold text-gray-800 mb-6 text-center">Nuevo Préstamo</h1>
 
-            <div className="max-w-2xl mx-auto bg-white p-8 rounded-lg shadow-md">
-                <div className="mb-6">
-                    <label htmlFor="client-select" className="block text-sm font-medium text-gray-700 mb-1">
+                {/* Sección de Selección de Cliente */}
+                <div className="mb-6 border-b pb-6">
+                    <label htmlFor="client-select" className="block text-sm font-semibold text-gray-700 mb-2">
                         Seleccionar Cliente
                     </label>
                     <select
                         id="client-select"
                         value={selectedClientId}
                         onChange={handleClientSelect}
-                        className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
+                        className="mt-1 block w-full px-4 py-2 text-base border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 transition duration-150 ease-in-out"
                         disabled={allClients.length === 0}
                     >
                         <option value="">-- Elige un cliente --</option>
@@ -157,58 +201,125 @@ const AdminNewLoanForm: React.FC = () => {
                             </option>
                         ))}
                     </select>
-                    {allClients.length === 0 && !isLoadingClients && <p className="text-sm text-gray-500 mt-2">No hay clientes disponibles. <a href="/portal/admin/clients/new" className="text-blue-600 hover:underline">Crea uno nuevo</a>.</p>}
+                    {allClients.length === 0 && !isLoadingClients && (
+                        <p className="text-sm text-gray-500 mt-3 text-center">
+                            No hay clientes disponibles. <a href="/portal/admin/clients/new" className="text-blue-600 hover:text-blue-800 hover:underline font-medium">Crea uno nuevo aquí</a>.
+                        </p>
+                    )}
                 </div>
 
-                {isLoadingClientData && <div className="text-center p-4">Cargando datos del cliente...</div>}
-
+                {/* Mensajes de estado: cargando cliente o error */}
+                {isLoadingClientData && (
+                    <div className="text-center p-4 text-blue-600">
+                        <div className="animate-pulse">Cargando datos del cliente...</div>
+                    </div>
+                )}
                 {error && (
-                    <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4">
+                    <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-md relative mb-4 text-center">
                         {error}
                     </div>
                 )}
 
+                {/* Mensaje si no hay cliente seleccionado */}
                 {!selectedClientId && !isLoadingClientData && (
-                     <div className="text-center p-4 text-gray-500">
-                        Por favor, selecciona un cliente para continuar.
-                     </div>
+                    <div className="text-center p-6 text-gray-500 bg-gray-50 rounded-md border border-dashed border-gray-300">
+                        <p className="text-lg">👋 Por favor, selecciona un cliente para continuar con la creación del préstamo.</p>
+                    </div>
                 )}
 
+                {/* Formulario de Préstamo si hay cliente seleccionado */}
                 {client && !isLoadingClientData && (
                     <div className="animate-fade-in-up">
                         <div className="mb-6 border-b pb-4">
-                            <h2 className="text-xl font-semibold">Datos del Préstamo para {client.name}</h2>
-                            <p className="text-sm text-gray-500">Email: {client.email}</p>
-                            <p className="text-sm text-gray-500">Cédula: {client.cedula}</p>
+                            <h2 className="text-2xl font-bold text-gray-800">Datos del Préstamo para <span className="text-blue-600">{client.name}</span></h2>
+                            <p className="text-sm text-gray-600 mt-1">Email: {client.email} | Cédula: {client.cedula}</p>
                         </div>
 
-                        <form onSubmit={handleSubmit} className="space-y-4">
+                        <form onSubmit={handleSubmit} className="space-y-5">
+                            {/* Monto del Préstamo */}
                             <div>
                                 <label htmlFor="loanAmount" className="block text-sm font-medium text-gray-700">Monto del Préstamo ($)</label>
-                                <input type="number" name="loanAmount" id="loanAmount" value={formData.loanAmount} onChange={handleChange} className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500" required />
+                                <input
+                                    type="number"
+                                    name="loanAmount"
+                                    id="loanAmount"
+                                    value={formData.loanAmount}
+                                    onChange={handleChange}
+                                    className="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 transition duration-150 ease-in-out"
+                                    required
+                                    min="0.01"
+                                    step="0.01"
+                                />
                             </div>
+
+                            {/* Tasa de Interés Anual */}
                             <div>
                                 <label htmlFor="interestRate" className="block text-sm font-medium text-gray-700">Tasa de Interés Anual (%)</label>
-                                <input type="number" name="interestRate" id="interestRate" value={formData.interestRate} onChange={handleChange} className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500" required />
+                                <input
+                                    type="number"
+                                    name="interestRate"
+                                    id="interestRate"
+                                    value={formData.interestRate}
+                                    onChange={handleChange}
+                                    className="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 transition duration-150 ease-in-out"
+                                    required
+                                    min="0.01"
+                                    step="0.01"
+                                />
                             </div>
-                            <div>
-                                <label htmlFor="termInMonths" className="block text-sm font-medium text-gray-700">Plazo (en meses)</label>
-                                <input type="number" name="termInMonths" id="termInMonths" value={formData.termInMonths} onChange={handleChange} className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500" required />
-                            </div>
+
+                            {/* Frecuencia de Pago */}
                             <div>
                                 <label htmlFor="paymentFrequency" className="block text-sm font-medium text-gray-700">Frecuencia de Pago</label>
-                                <select name="paymentFrequency" id="paymentFrequency" value={formData.paymentFrequency} onChange={handleChange} className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                                <select
+                                    name="paymentFrequency"
+                                    id="paymentFrequency"
+                                    value={formData.paymentFrequency}
+                                    onChange={handleChange}
+                                    className="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 transition duration-150 ease-in-out"
+                                >
                                     <option value="Mensual">Mensual</option>
                                     <option value="Quincenal">Quincenal</option>
                                     <option value="Semanal">Semanal</option>
                                 </select>
                             </div>
+
+                            {/* Plazo (adaptativo según la frecuencia) */}
+                            <div>
+                                <label htmlFor="termValue" className="block text-sm font-medium text-gray-700">Plazo (en {termUnit})</label>
+                                <input
+                                    type="number"
+                                    name="termValue"
+                                    id="termValue"
+                                    value={formData.termValue}
+                                    onChange={handleChange}
+                                    className="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 transition duration-150 ease-in-out"
+                                    required
+                                    min="1"
+                                />
+                            </div>
+
+                            {/* Fecha de Desembolso */}
                             <div>
                                 <label htmlFor="disbursementDate" className="block text-sm font-medium text-gray-700">Fecha de Desembolso</label>
-                                <input type="date" name="disbursementDate" id="disbursementDate" value={formData.disbursementDate} onChange={handleChange} className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500" required />
+                                <input
+                                    type="date"
+                                    name="disbursementDate"
+                                    id="disbursementDate"
+                                    value={formData.disbursementDate}
+                                    onChange={handleChange}
+                                    className="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 transition duration-150 ease-in-out"
+                                    required
+                                />
                             </div>
-                            <div className="pt-4">
-                                <button type="submit" disabled={isSubmitting || isLoadingClientData} className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:bg-blue-300">
+
+                            {/* Botón de Envío */}
+                            <div className="pt-6">
+                                <button
+                                    type="submit"
+                                    disabled={isSubmitting || isLoadingClientData}
+                                    className="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-base font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:bg-blue-300 disabled:cursor-not-allowed transition duration-150 ease-in-out"
+                                >
                                     {isSubmitting ? 'Procesando...' : 'Crear Préstamo'}
                                 </button>
                             </div>

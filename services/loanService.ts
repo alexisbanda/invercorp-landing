@@ -8,7 +8,9 @@ import {
     where,
     getDocs,
     updateDoc,
-    arrayUnion
+    arrayUnion,
+    // Importa Timestamp si necesitas crear uno explícitamente, aunque Firestore lo hace automáticamente desde Date
+    // Timestamp
 } from 'firebase/firestore';
 import { db, auth } from '../firebase-config';
 import { Loan, Installment, LoanStatus, StatusChange } from '../types';
@@ -17,10 +19,27 @@ import { addMonths } from 'date-fns';
 /**
  * NOTA IMPORTANTE:
  * Para que este servicio funcione, tu tipo `Loan` en `types.ts` debe usar un array
- * para las cuotas, así: `installments: Installment[];` (Ya corregido en el paso anterior).
- * Esto es para mantener la consistencia con tu script de importación `importGeneral.js`.
+ * para las cuotas, así: `installments: Installment[];`.
  * Además, debe incluir: `userCedula`, `installmentsTotal`, `installmentAmount`.
+ * Las propiedades de fecha en los tipos (`Loan`, `Installment`, `StatusChange`) deben ser `Date | undefined` o `Date | null`.
  */
+
+// Helper para convertir Firestore Timestamp a Date
+// Firestore almacena fechas como Timestamps. Para usar métodos como toLocaleDateString(),
+// necesitamos convertirlos a objetos Date de JavaScript.
+const convertFirestoreTimestampToDate = (timestamp: any): Date | undefined => {
+    // Verifica si el objeto es un Timestamp de Firestore y tiene el método toDate()
+    if (timestamp && typeof timestamp.toDate === 'function') {
+        return timestamp.toDate();
+    }
+    // Si ya es un objeto Date (por ejemplo, si se creó con new Date() en el frontend y aún no se guardó/recargó)
+    // o si es null/undefined, lo retorna directamente.
+    if (timestamp instanceof Date || timestamp === null || timestamp === undefined) {
+        return timestamp;
+    }
+    // En caso de un formato inesperado, retorna undefined
+    return undefined;
+};
 
 // Interface para los datos que vienen del formulario de nuevo préstamo
 export interface NewLoanFormData {
@@ -30,44 +49,90 @@ export interface NewLoanFormData {
     userCedula: string;
     loanAmount: number;
     interestRate: number; // Tasa de interés anual en porcentaje (ej. 15 para 15%)
-    termInMonths: number;
+    termValue: number; // Valor del plazo (ej. 12 para meses, 24 para quincenas, 48 para semanas)
     paymentFrequency: 'Mensual' | 'Quincenal' | 'Semanal';
     disbursementDate: string; // Formato YYYY-MM-DD
 }
 
 /**
  * Calcula la tabla de amortización para un préstamo usando el sistema francés (cuotas fijas).
+ * NOTA: Esta función asume que el plazo (termValue) se convierte a meses internamente si la frecuencia no es mensual.
+ * Si la lógica de amortización es más compleja (ej. Alemana, o cuotas predefinidas como en los CSV),
+ * esta función necesitaría ser adaptada o reemplazada por una que cargue las cuotas directamente.
  */
 function calculateAmortization(
     principal: number,
     annualRate: number,
-    termInMonths: number,
+    termValue: number, // Ahora es termValue
+    paymentFrequency: 'Mensual' | 'Quincenal' | 'Semanal', // Nueva frecuencia
     startDate: Date
 ): { installments: Installment[], installmentAmount: number } {
-    const monthlyRate = annualRate / 100 / 12;
-    // Fórmula para el pago mensual (EMI)
-    const monthlyPayment = (principal * monthlyRate * Math.pow(1 + monthlyRate, termInMonths)) / (Math.pow(1 + monthlyRate, termInMonths) - 1);
+    let monthlyRate: number;
+    let totalPayments: number;
+
+    // Ajustar la tasa y el número total de pagos según la frecuencia
+    switch (paymentFrequency) {
+        case 'Mensual':
+            monthlyRate = annualRate / 100 / 12;
+            totalPayments = termValue;
+            break;
+        case 'Quincenal':
+            monthlyRate = annualRate / 100 / 24; // 24 quincenas en un año
+            totalPayments = termValue;
+            break;
+        case 'Semanal':
+            monthlyRate = annualRate / 100 / 52; // 52 semanas en un año
+            totalPayments = termValue;
+            break;
+        default:
+            throw new Error('Frecuencia de pago no soportada.');
+    }
+
+    // Manejo de tasa cero para evitar división por cero o cálculos incorrectos
+    const paymentAmount = monthlyRate === 0
+        ? principal / totalPayments // Si la tasa es 0, el pago es solo capital dividido por el número de pagos
+        : (principal * monthlyRate * Math.pow(1 + monthlyRate, totalPayments)) / (Math.pow(1 + monthlyRate, totalPayments) - 1);
 
     let balance = principal;
     const installments: Installment[] = [];
 
-    for (let i = 1; i <= termInMonths; i++) {
-        const interestForMonth = balance * monthlyRate;
-        const principalForMonth = monthlyPayment - interestForMonth;
-        balance -= principalForMonth;
+    for (let i = 1; i <= totalPayments; i++) {
+        const interestForPeriod = balance * monthlyRate;
+        const principalForPeriod = paymentAmount - interestForPeriod;
+        balance -= principalForPeriod;
 
         // Asegura que el último pago salde el balance exactamente
-        const paymentAmount = (i === termInMonths) ? principalForMonth + interestForMonth + balance : monthlyPayment;
+        // Se ajusta el último balance para evitar pequeñas diferencias de flotante
+        const finalPaymentAmount = (i === totalPayments) ? principalForPeriod + interestForPeriod + balance : paymentAmount;
+
+        let dueDate: Date;
+        // Calcular la fecha de vencimiento basada en la frecuencia
+        switch (paymentFrequency) {
+            case 'Mensual':
+                dueDate = addMonths(startDate, i);
+                break;
+            case 'Quincenal':
+                // Para quincenal, se suman 15 días por cada cuota
+                dueDate = new Date(startDate.getTime() + (i * 15 * 24 * 60 * 60 * 1000));
+                break;
+            case 'Semanal':
+                // Para semanal, se suman 7 días por cada cuota
+                dueDate = new Date(startDate.getTime() + (i * 7 * 24 * 60 * 60 * 1000));
+                break;
+            default:
+                dueDate = startDate; // Fallback
+        }
+
 
         installments.push({
             installmentNumber: i,
-            dueDate: addMonths(startDate, i),
-            amount: parseFloat(paymentAmount.toFixed(2)),
+            dueDate: dueDate,
+            amount: parseFloat(finalPaymentAmount.toFixed(2)),
             status: 'POR VENCER', // Estado inicial
         });
     }
 
-    return { installments, installmentAmount: parseFloat(monthlyPayment.toFixed(2)) };
+    return { installments, installmentAmount: parseFloat(paymentAmount.toFixed(2)) };
 }
 
 
@@ -77,7 +142,8 @@ function calculateAmortization(
 export const createLoan = async (data: NewLoanFormData): Promise<string> => {
     const {
         userId, userName, userEmail, userCedula,
-        loanAmount, interestRate, termInMonths,
+        loanAmount, interestRate, termValue, // termValue en lugar de termInMonths
+        paymentFrequency, // Nueva propiedad
         disbursementDate: disbursementDateString,
     } = data;
 
@@ -85,21 +151,22 @@ export const createLoan = async (data: NewLoanFormData): Promise<string> => {
     const newLoanRef = doc(loanCollectionRef); // Auto-genera un ID
     const newLoanId = newLoanRef.id;
 
+    // Convertir strings de fecha a Date objects antes de guardar. Firestore los convertirá a Timestamps.
     const disbursementDate = new Date(disbursementDateString + 'T00:00:00'); // Evita problemas de zona horaria
     const applicationDate = new Date();
 
     const { installments, installmentAmount } = calculateAmortization(
-        loanAmount, interestRate, termInMonths, disbursementDate
+        loanAmount, interestRate, termValue, paymentFrequency, disbursementDate // Pasa paymentFrequency y termValue
     );
 
     const statusHistory: StatusChange[] = [{
         status: LoanStatus.SOLICITADO,
-        date: applicationDate,
+        date: applicationDate, // Date object
         notes: 'Préstamo creado desde el portal de administración.',
         updatedBy: 'sistema',
     }, {
         status: LoanStatus.DESEMBOLSADO,
-        date: disbursementDate,
+        date: disbursementDate, // Date object
         notes: 'Préstamo desembolsado automáticamente al ser creado.',
         updatedBy: 'sistema',
     }];
@@ -107,17 +174,56 @@ export const createLoan = async (data: NewLoanFormData): Promise<string> => {
     const newLoan: Omit<Loan, 'id'> = {
         userId, userName, userEmail, userCedula, loanAmount,
         currency: 'USD',
-        applicationDate, disbursementDate,
+        applicationDate, // Date object
+        disbursementDate, // Date object
         status: LoanStatus.DESEMBOLSADO,
         statusHistory,
-        installmentsTotal: installments.length,
-        installmentAmount,
+        installmentsTotal: installments.length, // Total de cuotas
+        installmentAmount, // Monto de la cuota (si es fija, o la primera si es variable)
         installments, // Guardamos como un array, igual que el importador
+        termValue, // Guardar el valor del plazo (ej. 12 meses, 24 quincenas)
+        paymentFrequency, // Guardar la frecuencia de pago
     };
 
     await setDoc(newLoanRef, newLoan);
     return newLoanId;
 };
+
+// Helper para procesar datos del documento y convertir Timestamps a Date
+// Se usa en todas las funciones que LEEN préstamos de Firestore.
+const processLoanDocData = (docData: any, docId: string): Loan => {
+    const loan: Loan = {
+        id: docId,
+        userId: docData.userId,
+        userName: docData.userName,
+        userEmail: docData.userEmail,
+        userCedula: docData.userCedula,
+        loanAmount: docData.loanAmount,
+        interestRate: docData.interestRate,
+        termValue: docData.termValue,
+        paymentFrequency: docData.paymentFrequency,
+        currency: docData.currency,
+        // Convertir Timestamps a Date objects
+        applicationDate: convertFirestoreTimestampToDate(docData.applicationDate),
+        disbursementDate: convertFirestoreTimestampToDate(docData.disbursementDate),
+        status: docData.status as LoanStatus,
+        installmentsTotal: docData.installmentsTotal,
+        installmentAmount: docData.installmentAmount,
+        installments: docData.installments.map((inst: any) => ({
+            ...inst,
+            dueDate: convertFirestoreTimestampToDate(inst.dueDate),
+            paymentReportDate: convertFirestoreTimestampToDate(inst.paymentReportDate),
+            paymentDate: convertFirestoreTimestampToDate(inst.paymentDate), // Asegúrate de convertir también paymentDate
+        })),
+        loanHistory: docData.statusHistory.map((entry: any) => ({
+            ...entry,
+            date: convertFirestoreTimestampToDate(entry.date) // Convertir la fecha del historial de estado
+        })),
+        // Incluir cualquier otra propiedad que tengas en tu tipo Loan
+    };
+    return loan;
+};
+
 
 /**
  * Obtiene todos los préstamos para un ID de usuario específico.
@@ -126,13 +232,13 @@ export const getLoansForUser = async (userId: string): Promise<Loan[]> => {
     const loansRef = collection(db, 'loans');
     const q = query(loansRef, where('userId', '==', userId));
     const querySnapshot = await getDocs(q);
-    
-    return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Loan));
+
+    // Mapear y procesar cada documento para convertir Timestamps a Date
+    return querySnapshot.docs.map(doc => processLoanDocData(doc.data(), doc.id));
 };
 
 /**
  * Obtiene los préstamos del usuario actualmente autenticado.
- * ESTA FUNCIÓN SOLUCIONA EL ERROR.
  */
 export const getLoansForCurrentUser = async (): Promise<Loan[]> => {
     const user = auth.currentUser;
@@ -140,6 +246,7 @@ export const getLoansForCurrentUser = async (): Promise<Loan[]> => {
         console.log("No hay un usuario autenticado.");
         return [];
     }
+    // Llama a getLoansForUser que ya procesa las fechas
     return getLoansForUser(user.uid);
 };
 
@@ -151,7 +258,8 @@ export const getLoanById = async (loanId: string): Promise<Loan | null> => {
     const docSnap = await getDoc(loanRef);
 
     if (docSnap.exists()) {
-        return { id: docSnap.id, ...docSnap.data() } as Loan;
+        // Procesar el documento para convertir Timestamps a Date
+        return processLoanDocData(docSnap.data(), docSnap.id);
     }
     return null;
 };
@@ -162,7 +270,8 @@ export const getLoanById = async (loanId: string): Promise<Loan | null> => {
 export const getAllLoans = async (): Promise<Loan[]> => {
     const loansRef = collection(db, 'loans');
     const querySnapshot = await getDocs(loansRef);
-    return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Loan));
+    // Mapear y procesar cada documento para convertir Timestamps a Date
+    return querySnapshot.docs.map(doc => processLoanDocData(doc.data(), doc.id));
 };
 
 /**
@@ -174,7 +283,7 @@ export const getAllLoans = async (): Promise<Loan[]> => {
 export const reportPaymentForInstallment = async (
     loanId: string,
     installmentNumber: number,
-    paymentData: { receiptUrl: string; notes?: string }
+    paymentData: { receiptUrl?: string; notes?: string } // receiptUrl ahora es opcional
 ): Promise<void> => {
     const loanRef = doc(db, 'loans', loanId);
     const loanSnap = await getDoc(loanRef);
@@ -183,7 +292,13 @@ export const reportPaymentForInstallment = async (
         throw new Error(`No se encontró el préstamo con ID: ${loanId}`);
     }
 
-    const loan = loanSnap.data() as Loan;
+    // Al obtener los datos con .data() directamente, las fechas siguen siendo Timestamps.
+    // No es necesario convertirlas a Date aquí si solo se van a actualizar y guardar de nuevo.
+    const loanDataFromFirestore = loanSnap.data();
+    if (!loanDataFromFirestore) {
+        throw new Error("Datos del préstamo vacíos.");
+    }
+    const loan = loanDataFromFirestore as Loan; // Castear para acceso a propiedades
 
     // Encontrar la cuota específica en el array
     const installmentIndex = loan.installments.findIndex(
@@ -203,46 +318,14 @@ export const reportPaymentForInstallment = async (
         status: 'EN VERIFICACIÓN',
         receiptUrl: paymentData.receiptUrl,
         paymentReportNotes: paymentData.notes,
-        paymentReportDate: new Date(),
+        paymentReportDate: new Date(), // Guardar como Date, Firestore lo convertirá a Timestamp
+        adminNotes: '', // Limpiar cualquier nota anterior del admin
     };
 
     // Actualizar el documento del préstamo en Firestore
     await updateDoc(loanRef, {
         installments: updatedInstallments,
     });
-};
-
-/**
- * Obtiene todas las cuotas pendientes de verificación por parte de un administrador.
- * @returns Un array de cuotas en estado 'EN VERIFICACIÓN' con información del préstamo y cliente.
- */
-export const getPendingAdminInstallments = async (): Promise<any[]> => {
-    // Usamos la función existente para obtener todos los préstamos.
-    const allLoans = await getAllLoans();
-
-    const pendingInstallments: any[] = [];
-
-    // Iteramos sobre cada préstamo para encontrar cuotas pendientes.
-    for (const loan of allLoans) {
-        const pendingInThisLoan = loan.installments.filter(
-            (inst) => inst.status === 'EN VERIFICACIÓN'
-        );
-
-        // Si encontramos cuotas pendientes, las enriquecemos con datos del préstamo y cliente.
-        if (pendingInThisLoan.length > 0) {
-            for (const inst of pendingInThisLoan) {
-                pendingInstallments.push({
-                    ...inst,
-                    loanId: loan.id,
-                    userId: loan.userId,
-                    userName: loan.userName,
-                    userCedula: loan.userCedula,
-                });
-            }
-        }
-    }
-
-    return pendingInstallments;
 };
 
 /**
@@ -258,7 +341,12 @@ export const approvePayment = async (loanId: string, installmentNumber: number):
         throw new Error(`No se encontró el préstamo con ID: ${loanId}`);
     }
 
-    const loan = loanSnap.data() as Loan;
+    const loanDataFromFirestore = loanSnap.data();
+    if (!loanDataFromFirestore) {
+        throw new Error("Datos del préstamo vacíos.");
+    }
+    const loan = loanDataFromFirestore as Loan;
+
     const installmentIndex = loan.installments.findIndex(
         (inst) => inst.installmentNumber === installmentNumber
     );
@@ -271,7 +359,7 @@ export const approvePayment = async (loanId: string, installmentNumber: number):
     updatedInstallments[installmentIndex] = {
         ...updatedInstallments[installmentIndex],
         status: 'PAGADO',
-        paymentDate: new Date(), // Fecha de confirmación del pago
+        paymentDate: new Date(), // Guardar como Date, Firestore lo convertirá a Timestamp
         adminNotes: `Pago aprobado por ${auth.currentUser?.email || 'admin'}.`,
     };
 
@@ -285,7 +373,7 @@ export const approvePayment = async (loanId: string, installmentNumber: number):
     if (allPaid && loan.status !== LoanStatus.COMPLETADO) {
         const statusUpdate: StatusChange = {
             status: LoanStatus.COMPLETADO,
-            date: new Date(),
+            date: new Date(), // Guardar como Date, Firestore lo convertirá a Timestamp
             notes: 'Todas las cuotas han sido pagadas.',
             updatedBy: auth.currentUser?.email || 'sistema',
         };
@@ -310,7 +398,12 @@ export const rejectPayment = async (loanId: string, installmentNumber: number, r
         throw new Error(`No se encontró el préstamo con ID: ${loanId}`);
     }
 
-    const loan = loanSnap.data() as Loan;
+    const loanDataFromFirestore = loanSnap.data();
+    if (!loanDataFromFirestore) {
+        throw new Error("Datos del préstamo vacíos.");
+    }
+    const loan = loanDataFromFirestore as Loan;
+
     const installmentIndex = loan.installments.findIndex(
         (inst) => inst.installmentNumber === installmentNumber
     );
@@ -320,19 +413,58 @@ export const rejectPayment = async (loanId: string, installmentNumber: number, r
     }
 
     const originalInstallment = loan.installments[installmentIndex];
-    const isOverdue = new Date(originalInstallment.dueDate) < new Date();
+    // Para comparar fechas, convertimos el Timestamp de dueDate a Date.
+    // Si originalInstallment.dueDate es undefined o null, la comparación fallará,
+    // por lo que se añade un chequeo para asegurar que es un Date antes de comparar.
+    const dueDateAsDate = convertFirestoreTimestampToDate(originalInstallment.dueDate);
+    const isOverdue = dueDateAsDate ? dueDateAsDate < new Date() : false;
+
 
     const updatedInstallments = [...loan.installments];
     updatedInstallments[installmentIndex] = {
-        ...originalInstallment,
+        ...originalInstallment, // Usar originalInstallment para mantener todas las propiedades originales
         status: isOverdue ? 'VENCIDO' : 'POR VENCER',
         receiptUrl: undefined, // Limpiar datos del reporte
-        paymentReportDate: undefined,
-        paymentReportNotes: undefined,
+        paymentReportDate: undefined, // Limpiar datos del reporte
+        paymentReportNotes: undefined, // Limpiar datos del reporte
         adminNotes: `Rechazado por ${auth.currentUser?.email || 'admin'}: ${reason}`,
     };
 
     await updateDoc(loanRef, {
         installments: updatedInstallments,
     });
+};
+
+/**
+ * Obtiene todas las cuotas pendientes de verificación por parte de un administrador.
+ * @returns Un array de cuotas en estado 'EN VERIFICACIÓN' con información del préstamo y cliente.
+ */
+export const getPendingAdminInstallments = async (): Promise<any[]> => {
+    // Usamos la función existente para obtener todos los préstamos.
+    const allLoans = await getAllLoans(); // Esta función ya procesa los Timestamps a Date
+
+    const pendingInstallments: any[] = [];
+
+    // Iteramos sobre cada préstamo para encontrar cuotas pendientes.
+    for (const loan of allLoans) {
+        // Las fechas de loan.installments ya son Date objects gracias a getAllLoans
+        const pendingInThisLoan = loan.installments.filter(
+            (inst) => inst.status === 'EN VERIFICACIÓN'
+        );
+
+        // Si encontramos cuotas pendientes, las enriquecemos con datos del préstamo y cliente.
+        if (pendingInThisLoan.length > 0) {
+            for (const inst of pendingInThisLoan) {
+                pendingInstallments.push({
+                    ...inst,
+                    loanId: loan.id,
+                    userId: loan.userId,
+                    userName: loan.userName,
+                    userCedula: loan.userCedula,
+                });
+            }
+        }
+    }
+
+    return pendingInstallments;
 };
