@@ -6,23 +6,40 @@ let firebaseApp: admin.app.App | null = null; // Variable para almacenar la inst
 
 // --- Helper para inicializar Firebase Admin de forma segura (solo una vez por instancia de función) ---
 function initializeFirebaseAdmin() {
-    if (firebaseApp) { // Si ya está inicializada, la reutilizamos.
+    if (firebaseApp) {
         return firebaseApp;
     }
 
-    // La variable de entorno se valida dentro del handler, aquí asumimos que existe.
-    // PERO AHORA LA ENVOLVEMOS EN UN TRY-CATCH PARA CAPTURAR ERRORES DE PARSEO
     try {
-        const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY!);
-        
+        const rawEnvKey = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
+        console.log("DEBUG: Raw FIREBASE_SERVICE_ACCOUNT_KEY (first 50 chars):", rawEnvKey?.substring(0, 50) + "...");
+        console.log("DEBUG: Raw FIREBASE_SERVICE_ACCOUNT_KEY (last 50 chars):", rawEnvKey?.slice(-50));
+
+        const serviceAccount = JSON.parse(rawEnvKey!);
+        console.log("DEBUG: Parsed serviceAccount object keys:", Object.keys(serviceAccount));
+        console.log("DEBUG: Parsed private_key (first 50 chars):", serviceAccount.private_key.substring(0, 50) + "...");
+        console.log("DEBUG: Parsed private_key (last 50 chars):", serviceAccount.private_key.slice(-50));
+
+        // Verifica si la private_key contiene saltos de línea reales
+        console.log("DEBUG: private_key contains \\n (escaped newline)?", serviceAccount.private_key.includes('\\n'));
+        console.log("DEBUG: private_key contains \n (real newline)?", serviceAccount.private_key.includes('\n'));
+
+        // Si el problema persiste, intenta esta línea para forzar el unescape,
+        // aunque JSON.parse() debería manejar \\n a \n automáticamente.
+        // serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
+        // console.log("DEBUG: private_key AFTER replace (first 50 chars):", serviceAccount.private_key.substring(0, 50) + "...");
+        // console.log("DEBUG: private_key AFTER replace (last 50 chars):", serviceAccount.private_key.slice(-50));
+        // console.log("DEBUG: private_key AFTER replace contains \n (real newline)?", serviceAccount.private_key.includes('\n'));
+
+
         firebaseApp = admin.initializeApp({
             credential: admin.credential.cert(serviceAccount)
         });
+        console.log("DEBUG: Firebase Admin initialized successfully.");
         return firebaseApp;
-    } catch (error) {
-        console.error("ERROR FATAL al inicializar Firebase Admin SDK:", error);
-        // Relanzar el error para que el handler principal lo capture y devuelva un 500
-        throw new Error("Error de configuración de credenciales de Firebase.");
+    } catch (error: any) {
+        console.error("ERROR FATAL al inicializar Firebase Admin SDK:", error.message, error.stack);
+        throw new Error("Error de configuración de credenciales de Firebase: " + error.message);
     }
 }
 
