@@ -9,7 +9,7 @@ function initializeFirebaseAdmin() {
     }
 
     // La variable de entorno se valida dentro del handler, aquí asumimos que existe.
-    const serviceAccount = JSON.parse(import.meta.env.FIREBASE_SERVICE_ACCOUNT_KEY!);
+    const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY!);
     
     // Inicializamos la app y la retornamos.
     return admin.initializeApp({
@@ -28,7 +28,7 @@ const handler: Handler = async (event: HandlerEvent) => {
 
   // VALIDACIÓN CLAVE: Comprobamos la variable de entorno DENTRO del handler.
   // Esto nos permite devolver un error JSON válido si falta la configuración.
-  if (!import.meta.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
+  if (!process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
     console.error("FATAL: La variable de entorno FIREBASE_SERVICE_ACCOUNT_KEY no está configurada.");
     return {
         statusCode: 500,
