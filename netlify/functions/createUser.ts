@@ -1,20 +1,38 @@
+// netlify/functions/createUser.ts
 import { Handler, HandlerEvent } from '@netlify/functions';
 import * as admin from 'firebase-admin';
 
 // --- Helper para inicializar Firebase Admin de forma segura (solo una vez por instancia de función) ---
+let firebaseApp: admin.app.App | null = null; // Variable para almacenar la instancia de la app
+
 function initializeFirebaseAdmin() {
     // Si la app ya está inicializada, la reutilizamos.
-    if (admin.apps.length > 0) {
-        return admin.app();
+    if (firebaseApp) {
+        return firebaseApp;
     }
 
     // La variable de entorno se valida dentro del handler, aquí asumimos que existe.
-    const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY!);
-    
-    // Inicializamos la app y la retornamos.
-    return admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount)
-    });
+    const serviceAccountKey = process.env.FIREBASE_SERVICE_ACCOUNT_KEY; // Usamos el nombre original de la variable
+
+    if (!serviceAccountKey) {
+        console.error("FATAL: La variable de entorno FIREBASE_SERVICE_ACCOUNT_KEY no está configurada.");
+        throw new Error("Error de configuración del servidor: La clave de servicio de Firebase no está definida.");
+    }
+
+    try {
+        const serviceAccount = JSON.parse(serviceAccountKey);
+        
+        // Inicializamos la app y la retornamos.
+        firebaseApp = admin.initializeApp({
+            credential: admin.credential.cert(serviceAccount)
+        });
+        console.log("Firebase Admin inicializado con éxito.");
+        return firebaseApp;
+    } catch (error: any) {
+        console.error("ERROR FATAL al inicializar Firebase Admin SDK:", error.message, error.stack);
+        // Relanzar el error para que el handler principal lo capture y devuelva un 500
+        throw new Error("Error de configuración de credenciales de Firebase: " + error.message);
+    }
 }
 
 // --- Handler de la función ---
@@ -36,12 +54,38 @@ const handler: Handler = async (event: HandlerEvent) => {
     };
   }
 
+  let requestBody: any;
+  try {
+    // --- NUEVA LÓGICA DE DEPURACIÓN Y DECODIFICACIÓN ---
+    console.log("DEBUG: event.isBase64Encoded:", event.isBase64Encoded);
+    console.log("DEBUG: Raw event.body (first 50 chars):", event.body?.substring(0, 50) + "...");
+
+    let decodedBody = event.body;
+    if (event.isBase64Encoded && event.body) {
+        decodedBody = Buffer.from(event.body, 'base64').toString('utf8');
+        console.log("DEBUG: Decoded event.body (first 50 chars):", decodedBody.substring(0, 50) + "...");
+    } else if (!event.body) {
+        // Si el body es null o undefined, tratamos como un string vacío para JSON.parse
+        decodedBody = ''; 
+    }
+
+    requestBody = JSON.parse(decodedBody);
+    console.log("DEBUG: Parsed requestBody:", requestBody); // Imprime el objeto JSON parseado
+
+  } catch (error: any) {
+    console.error('Error al parsear el cuerpo de la solicitud:', error);
+    if (error instanceof SyntaxError) {
+        return { statusCode: 400, body: JSON.stringify({ error: 'El cuerpo de la solicitud no es un JSON válido.' }) };
+    }
+    return { statusCode: 500, body: JSON.stringify({ error: `Error interno del servidor al procesar la solicitud: ${error.message}` }) };
+  }
+
   try {
     // Inicializamos Firebase de forma segura
     const app = initializeFirebaseAdmin();
     const auth = app.auth();
 
-    const { email, password, name } = JSON.parse(event.body || '{}');
+    const { email, password, name } = requestBody; // Usamos el requestBody ya parseado
 
     // Validar datos de entrada
     if (!email || !password || !name) {
@@ -78,11 +122,8 @@ const handler: Handler = async (event: HandlerEvent) => {
     };
 
   } catch (error: any) {
-    console.error('Error en la función createUser:', error);
-    // Captura errores de JSON.parse si el body está malformado
-    if (error instanceof SyntaxError) {
-        return { statusCode: 400, body: JSON.stringify({ error: 'El cuerpo de la solicitud no es un JSON válido.' }) };
-    }
+    console.error('Error en la función createUser (handler principal):', error);
+    // Este catch ahora solo debería atrapar errores de la lógica de Firebase Auth
     return { statusCode: 500, body: JSON.stringify({ error: `Error interno del servidor: ${error.message}` }) };
   }
 };
