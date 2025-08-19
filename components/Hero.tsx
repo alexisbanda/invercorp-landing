@@ -271,7 +271,7 @@ const Hero: React.FC = () => {
 							</p>
 
 							<a
-								href="https://wa.me/593963386031?text=Hola,%20quiero%20más%20información%20sobre%20INVERCOP%20y%20cómo%20pueden%20ayudarme%20a%20crecer."
+								href="https://wa.me/593993845713?text=Hola,%20quiero%20más%20información%20sobre%20INVERCOP%20y%20cómo%20pueden%20ayudarme%20a%20crecer."
 								target="_blank"
 								rel="noopener noreferrer"
 								className="w-full bg-[#25D366] text-white font-bold py-3 px-6 rounded-full cta-button text-lg flex items-center justify-center gap-2 text-center"

@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import toast, { Toaster } from 'react-hot-toast';
 // Importamos las funciones correctas del servicio
-import { getLoanById, approvePayment, rejectPayment } from '@/services/loanService';
+import { getLoanById, approvePayment, rejectPayment, reportPaymentForInstallment } from '@/services/loanService';
 import { Loan, Installment } from '@/types';
 import { Timestamp } from 'firebase/firestore'; // Es una buena práctica importar el tipo
 
@@ -16,6 +16,63 @@ interface StatusChange {
     notes?: string;
     updatedBy?: string;
 }
+
+// --- Modal para reportar pago (inspirado en DashboardPage) ---
+const ReportPaymentModal: React.FC<{
+    isOpen: boolean;
+    onClose: () => void;
+    onSubmit: (notes: string) => void;
+    installmentNumber: number | null;
+    isSubmitting: boolean;
+}> = ({ isOpen, onClose, onSubmit, installmentNumber, isSubmitting }) => {
+    const [notes, setNotes] = useState('');
+
+    useEffect(() => {
+        if (isOpen) {
+            setNotes('');
+        }
+    }, [isOpen]);
+
+    if (!isOpen || installmentNumber === null) return null;
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        onSubmit(notes);
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4 transition-opacity duration-300">
+            <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md transform transition-all duration-300 scale-100">
+                <h3 className="text-lg font-bold text-gray-900 mb-4">Reportar Pago de Cuota #{installmentNumber}</h3>
+                <form onSubmit={handleSubmit}>
+                    <div className="mb-4">
+                        <label htmlFor="paymentNotes" className="block text-sm font-medium text-gray-700 mb-1">
+                            Comentario (Opcional)
+                        </label>
+                        <textarea
+                            id="paymentNotes"
+                            value={notes}
+                            onChange={(e) => setNotes(e.target.value)}
+                            rows={3}
+                            className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+                            placeholder="Ej: Cliente pagó en efectivo en la oficina."
+                        />
+                        <p className="text-xs text-gray-500 mt-1">Añade una nota para registrar el método o detalles del pago.</p>
+                    </div>
+                    <div className="flex justify-end gap-3 mt-6">
+                        <button type="button" onClick={onClose} disabled={isSubmitting} className="px-4 py-2 text-sm font-semibold text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 transition disabled:opacity-50">
+                            Cancelar
+                        </button>
+                        <button type="submit" disabled={isSubmitting} className="px-4 py-2 text-sm font-semibold text-white bg-blue-600 rounded-md hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-wait">
+                            {isSubmitting ? 'Enviando...' : 'Confirmar Reporte'}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    );
+};
+
 
 // --- Componente para el modal de rechazo (sin cambios) ---
 const RejectionModal: React.FC<{
@@ -86,8 +143,14 @@ export const LoanInstallmentsPage = () => {
     const [loan, setLoan] = useState<Loan | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [isModalOpen, setIsModalOpen] = useState(false);
-    const [selectedInstallment, setSelectedInstallment] = useState<Installment | null>(null);
+    
+    // Estados para los modales
+    const [isRejectionModalOpen, setIsRejectionModalOpen] = useState(false);
+    const [installmentToReject, setInstallmentToReject] = useState<Installment | null>(null);
+    const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+    const [installmentToReport, setInstallmentToReport] = useState<Installment | null>(null);
+    const [isSubmittingReport, setIsSubmittingReport] = useState(false);
+
 
     const fetchLoanDetails = useCallback(async () => {
         if (!loanId) {
@@ -128,14 +191,14 @@ export const LoanInstallmentsPage = () => {
     };
 
     const handleOpenRejectModal = (installment: Installment) => {
-        setSelectedInstallment(installment);
-        setIsModalOpen(true);
+        setInstallmentToReject(installment);
+        setIsRejectionModalOpen(true);
     };
 
     const handleRejectSubmit = async (reason: string) => {
-        if (!loanId || !selectedInstallment) return;
-        const { installmentNumber } = selectedInstallment;
-        setIsModalOpen(false);
+        if (!loanId || !installmentToReject) return;
+        const { installmentNumber } = installmentToReject;
+        setIsRejectionModalOpen(false);
         const toastId = toast.loading('Rechazando pago...');
         try {
             await rejectPayment(loanId, installmentNumber, reason);
@@ -144,9 +207,37 @@ export const LoanInstallmentsPage = () => {
         } catch (err) {
             toast.error((err as Error).message || 'Error al rechazar el pago.', { id: toastId });
         } finally {
-            setSelectedInstallment(null);
+            setInstallmentToReject(null);
         }
     };
+
+    // --- Handlers para reportar pago ---
+    const handleOpenReportModal = (installment: Installment) => {
+        setInstallmentToReport(installment);
+        setIsReportModalOpen(true);
+    };
+
+    const handleReportSubmit = async (notes: string) => {
+        if (!loanId || !installmentToReport) return;
+
+        setIsSubmittingReport(true);
+        const toastId = toast.loading('Reportando pago...');
+
+        try {
+            await reportPaymentForInstallment(loanId, installmentToReport.installmentNumber, { paymentReportNotes: notes });
+            toast.success('Pago reportado con éxito.', { id: toastId });
+            fetchLoanDetails(); // Recargar datos para ver el cambio de estado
+        } catch (err) {
+            console.error("Error al reportar el pago:", err);
+            toast.error('Hubo un error al reportar el pago.', { id: toastId });
+            throw err;
+        } finally {
+            setIsSubmittingReport(false);
+            setIsReportModalOpen(false);
+            setInstallmentToReport(null);
+        }
+    };
+
 
     if (isLoading) return <div className="p-6 text-center">Cargando detalles del préstamo...</div>;
     if (error) return <div className="p-6 text-center text-red-500">{error}</div>;
@@ -165,9 +256,16 @@ export const LoanInstallmentsPage = () => {
         <div className="p-6 bg-gray-50 min-h-screen">
             <Toaster position="top-right" />
             <RejectionModal
-                isOpen={isModalOpen}
-                onClose={() => setIsModalOpen(false)}
+                isOpen={isRejectionModalOpen}
+                onClose={() => setIsRejectionModalOpen(false)}
                 onSubmit={handleRejectSubmit}
+            />
+            <ReportPaymentModal
+                isOpen={isReportModalOpen}
+                onClose={() => setIsReportModalOpen(false)}
+                onSubmit={handleReportSubmit}
+                installmentNumber={installmentToReport?.installmentNumber || null}
+                isSubmitting={isSubmittingReport}
             />
 
             <div className="max-w-7xl mx-auto">
@@ -211,12 +309,22 @@ export const LoanInstallmentsPage = () => {
                                     )}
                                 </td>
                                 <td className="py-4 px-4 text-center">
-                                    {inst.status === 'EN VERIFICACIÓN' && (
-                                        <div className="flex gap-2 justify-center">
-                                            <button onClick={() => handleApprove(inst.installmentNumber)} className="px-3 py-1 bg-green-500 text-white rounded hover:bg-green-600 text-sm">Aprobar</button>
-                                            <button onClick={() => handleOpenRejectModal(inst)} className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 text-sm">Rechazar</button>
-                                        </div>
-                                    )}
+                                    <div className="flex gap-2 justify-center">
+                                        {inst.status === 'EN VERIFICACIÓN' && (
+                                            <>
+                                                <button onClick={() => handleApprove(inst.installmentNumber)} className="px-3 py-1 bg-green-500 text-white rounded hover:bg-green-600 text-sm">Aprobar</button>
+                                                <button onClick={() => handleOpenRejectModal(inst)} className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 text-sm">Rechazar</button>
+                                            </>
+                                        )}
+                                        {(inst.status === 'POR VENCER' || inst.status === 'VENCIDO' || inst.status === 'PENDIENTE') && (
+                                            <button
+                                                onClick={() => handleOpenReportModal(inst)}
+                                                className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm"
+                                            >
+                                                Reportar Pago
+                                            </button>
+                                        )}
+                                    </div>
                                 </td>
                             </tr>
                         ))}

@@ -1,11 +1,53 @@
 // src/components/admin/LoanManagementPage.tsx
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { collection, getDocs, Timestamp } from 'firebase/firestore';
+import { collection, getDocs, Timestamp, doc, deleteDoc } from 'firebase/firestore';
 import { Link } from 'react-router-dom';
+import toast, { Toaster } from 'react-hot-toast';
 import { db } from '../../firebase-config';
 import { Loan, LoanStatus, Installment } from '../../types'; // Asegúrate de importar Installment
 import { ChangeStatusModal } from './ChangeStatusModal';
+
+// --- Componente para el modal de confirmación de eliminación ---
+const DeleteConfirmationModal: React.FC<{
+    isOpen: boolean;
+    onClose: () => void;
+    onConfirm: () => void;
+    loanId: string | null;
+    isDeleting: boolean;
+}> = ({ isOpen, onClose, onConfirm, loanId, isDeleting }) => {
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-70 z-50 flex justify-center items-center p-4">
+            <div className="bg-white rounded-lg shadow-2xl p-6 w-full max-w-md">
+                <h3 className="text-xl font-bold text-red-700 mb-4">Confirmar Eliminación</h3>
+                <p className="text-gray-700 mb-2">
+                    ¿Estás absolutamente seguro de que quieres eliminar el préstamo <strong>{loanId}</strong>?
+                </p>
+                <p className="text-sm text-red-600 bg-red-50 p-3 rounded-md">
+                    <strong>¡Atención!</strong> Esta acción es irreversible y eliminará permanentemente todos los datos asociados al préstamo.
+                </p>
+                <div className="flex justify-end gap-4 mt-6">
+                    <button 
+                        onClick={onClose} 
+                        disabled={isDeleting}
+                        className="px-4 py-2 font-semibold text-gray-800 bg-gray-200 rounded-md hover:bg-gray-300 transition disabled:opacity-50"
+                    >
+                        Cancelar
+                    </button>
+                    <button 
+                        onClick={onConfirm}
+                        disabled={isDeleting}
+                        className="px-4 py-2 font-semibold text-white bg-red-600 rounded-md hover:bg-red-700 transition disabled:opacity-50 disabled:cursor-wait"
+                    >
+                        {isDeleting ? 'Eliminando...' : 'Sí, eliminar'}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
 
 // (El componente StatusBadge no cambia)
 const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
@@ -46,6 +88,8 @@ export const LoanManagementPage = () => {
     const [loans, setLoans] = useState<Loan[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [selectedLoan, setSelectedLoan] = useState<Loan | null>(null);
+    const [loanToDelete, setLoanToDelete] = useState<Loan | null>(null);
+    const [isDeleting, setIsDeleting] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState('');
 
@@ -93,6 +137,32 @@ export const LoanManagementPage = () => {
         setSelectedLoan(loan);
     };
 
+    const handleOpenDeleteModal = (loan: Loan) => {
+        setLoanToDelete(loan);
+    };
+
+    const handleConfirmDelete = async () => {
+        if (!loanToDelete) return;
+
+        setIsDeleting(true);
+        const toastId = toast.loading('Eliminando préstamo...');
+
+        try {
+            const loanDocRef = doc(db, 'loans', loanToDelete.id);
+            await deleteDoc(loanDocRef);
+
+            setLoans(prevLoans => prevLoans.filter(l => l.id !== loanToDelete.id));
+            
+            toast.success('Préstamo eliminado con éxito.', { id: toastId });
+            setLoanToDelete(null);
+        } catch (error) {
+            console.error("Error al eliminar el préstamo:", error);
+            toast.error('No se pudo eliminar el préstamo.', { id: toastId });
+        } finally {
+            setIsDeleting(false);
+        }
+    };
+
     const filteredLoans = useMemo(() => {
         return loans.filter(loan => {
             const matchesSearch =
@@ -109,6 +179,7 @@ export const LoanManagementPage = () => {
 
     return (
         <div className="p-6 bg-gray-50 min-h-full">
+            <Toaster position="top-right" />
             <h1 className="text-2xl font-bold text-gray-800 mb-4">Gestión de Préstamos</h1>
 
             {/* --- UI de filtros (sin cambios) --- */}
@@ -191,6 +262,13 @@ export const LoanManagementPage = () => {
                                             >
                                                 Cambiar Estado
                                             </button>
+                                            <button
+                                                onClick={() => handleOpenDeleteModal(loan)}
+                                                className="bg-red-500 hover:bg-red-700 text-white font-semibold py-1 px-3 rounded-md text-xs transition-colors duration-200"
+                                                title="Eliminar préstamo"
+                                            >
+                                                Eliminar
+                                            </button>
                                         </div>
                                     </td>
                                 </tr>
@@ -208,6 +286,16 @@ export const LoanManagementPage = () => {
                     onStatusChange={() => {
                         fetchLoans();
                     }}
+                />
+            )}
+
+            {loanToDelete && (
+                <DeleteConfirmationModal
+                    isOpen={!!loanToDelete}
+                    onClose={() => setLoanToDelete(null)}
+                    onConfirm={handleConfirmDelete}
+                    loanId={loanToDelete.id}
+                    isDeleting={isDeleting}
                 />
             )}
         </div>

@@ -20,11 +20,11 @@ const JsonLD: React.FC = () => {
       "latitude": "-0.1807",
       "longitude": "-78.4678"
     },
-    "telephone": "+593-963386031",
+    "telephone": "+593-993845713",
     "email": "invercopsemillasdefe@gmail.com",
     "contactPoint": {
       "@type": "ContactPoint",
-      "telephone": "+593-963386031",
+      "telephone": "+593-993845713",
       "contactType": "customer service",
       "email": "invercopsemillasdefe@gmail.com",
       "availableLanguage": ["Spanish"]
