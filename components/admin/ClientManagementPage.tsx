@@ -1,7 +1,11 @@
 // src/components/admin/ClientManagementPage.tsx
 import React, { useEffect, useState } from 'react';
 import { getAllClients, Client } from '../../services/clientService';
+import { getAllLoans } from '../../services/loanService';
+import { getAllProgrammedSavings } from '../../services/savingsService';
 import EditClientModal from './EditClientModal';
+import { Link } from 'react-router-dom';
+import { Loan, ProgrammedSaving } from '../../types';
 
 const ClientManagementPage: React.FC = () => {
   const [clients, setClients] = useState<Client[]>([]);
@@ -9,20 +13,38 @@ const ClientManagementPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [clientData, setClientData] = useState<{[key: string]: {loans: Loan[], savings: ProgrammedSaving[]}}>({});
 
-  const fetchClients = async () => {
+  const fetchAllData = async () => {
     try {
-      const allClients = await getAllClients();
+      setLoading(true);
+      const [allClients, allLoans, allSavings] = await Promise.all([
+        getAllClients(),
+        getAllLoans(),
+        getAllProgrammedSavings(),
+      ]);
+
+      const data: {[key: string]: {loans: Loan[], savings: ProgrammedSaving[]}} = {};
+
+      allClients.forEach(client => {
+        data[client.id] = {
+          loans: allLoans.filter(loan => loan.userId === client.id),
+          savings: allSavings.filter(saving => saving.clienteId === client.id),
+        };
+      });
+
       setClients(allClients);
+      setClientData(data);
+
     } catch (error) {
-      console.error("Error fetching clients:", error);
+      console.error("Error fetching data:", error);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchClients();
+    fetchAllData();
   }, []);
 
   const handleEditClick = (client: Client) => {
@@ -36,7 +58,7 @@ const ClientManagementPage: React.FC = () => {
   };
 
   const handleClientUpdated = () => {
-    fetchClients(); // Re-fetch clients to show updated data
+    fetchAllData(); // Re-fetch all data to show updated info
   };
 
   const filteredClients = clients.filter(client =>
@@ -84,7 +106,12 @@ const ClientManagementPage: React.FC = () => {
                 <td className="px-6 py-4 whitespace-nowrap">{client.email}</td>
                 <td className="px-6 py-4 whitespace-nowrap">{client.phone}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                  <button className="text-indigo-600 hover:text-indigo-900">Ver</button>
+                  {clientData[client.id]?.loans.length > 0 && (
+                    <Link to={`/portal/admin/management/${clientData[client.id]?.loans[0].id}`} className="text-blue-600 hover:text-blue-900 mr-4">Ver Préstamo</Link>
+                  )}
+                  {clientData[client.id]?.savings.length > 0 && (
+                     <Link to={`/portal/admin/savings/${client.id}/${clientData[client.id]?.savings[0].numeroCartola}`} className="text-green-600 hover:text-green-900">Ver Ahorro</Link>
+                  )}
                   <button onClick={() => handleEditClick(client)} className="text-yellow-600 hover:text-yellow-900 ml-4">Editar</button>
                 </td>
               </tr>
