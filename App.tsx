@@ -31,6 +31,7 @@ import AdminNewProgrammedSavingForm from './components/admin/AdminNewProgrammedS
 import AdminProgrammedSavingDetailPage from './components/admin/AdminProgrammedSavingDetailPage';
 import NewClientPage from './components/admin/NewClientPage';
 import AdminNewLoanForm from './components/admin/AdminNewLoanForm';
+import ClientManagementPage from './components/admin/ClientManagementPage';
 
 function App() {
     return (
@@ -79,6 +80,7 @@ function App() {
                     <Route path="/portal/admin/clients/new" element={<NewClientPage />} />
                     <Route path="/portal/admin/loans/new" element={<AdminNewLoanForm />} />
                     <Route path="/portal/admin/loans/:loanId" element={<LoanInstallmentsPage />} />
+                    <Route path="/portal/admin/clients" element={<ClientManagementPage />} />
                 </Route>
             </Routes>
         </Router>
