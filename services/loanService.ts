@@ -312,14 +312,25 @@ export const reportPaymentForInstallment = async (
     // Clonar el array de cuotas para no mutar el estado directamente
     const updatedInstallments = [...loan.installments];
 
+    // Construir el objeto de la cuota actualizada, evitando valores `undefined`
+    const updatedInstallmentData: any = {
+        status: 'EN VERIFICACIÓN',
+        paymentReportDate: new Date(),
+        adminNotes: '',
+    };
+
+    if (paymentData.notes !== undefined) {
+        updatedInstallmentData.paymentReportNotes = paymentData.notes;
+    }
+
+    if (paymentData.receiptUrl !== undefined) {
+        updatedInstallmentData.receiptUrl = paymentData.receiptUrl;
+    }
+
     // Actualizar la cuota
     updatedInstallments[installmentIndex] = {
         ...updatedInstallments[installmentIndex],
-        status: 'EN VERIFICACIÓN',
-        receiptUrl: paymentData.receiptUrl,
-        paymentReportNotes: paymentData.notes,
-        paymentReportDate: new Date(), // Guardar como Date, Firestore lo convertirá a Timestamp
-        adminNotes: '', // Limpiar cualquier nota anterior del admin
+        ...updatedInstallmentData,
     };
 
     // Actualizar el documento del préstamo en Firestore
@@ -421,12 +432,11 @@ export const rejectPayment = async (loanId: string, installmentNumber: number, r
 
 
     const updatedInstallments = [...loan.installments];
+    const { receiptUrl, paymentReportDate, paymentReportNotes, ...restOfInstallment } = originalInstallment;
+
     updatedInstallments[installmentIndex] = {
-        ...originalInstallment, // Usar originalInstallment para mantener todas las propiedades originales
+        ...restOfInstallment,
         status: isOverdue ? 'VENCIDO' : 'POR VENCER',
-        receiptUrl: undefined, // Limpiar datos del reporte
-        paymentReportDate: undefined, // Limpiar datos del reporte
-        paymentReportNotes: undefined, // Limpiar datos del reporte
         adminNotes: `Rechazado por ${auth.currentUser?.email || 'admin'}: ${reason}`,
     };
 
