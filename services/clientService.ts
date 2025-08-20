@@ -1,6 +1,7 @@
 // src/services/clientService.ts
 import { db } from '../firebase-config';
-import { doc, setDoc, serverTimestamp, collection, getDocs, query, where } from 'firebase/firestore';
+import { doc, setDoc, serverTimestamp, collection, getDocs, query, where, updateDoc } from 'firebase/firestore';
+
 
 // Define la interfaz para los datos del nuevo cliente
 export interface NewClientData {
@@ -90,4 +91,9 @@ export const getAllClients = async (): Promise<Client[]> => {
         clients.push({ id: doc.id, ...doc.data() } as Client);
     });
     return clients;
+};
+
+export const updateClient = async (clientId: string, data: Partial<Client>): Promise<void> => {
+    const clientDocRef = doc(db, 'users', clientId);
+    await updateDoc(clientDocRef, data);
 };

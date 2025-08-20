@@ -1,26 +1,43 @@
 // src/components/admin/ClientManagementPage.tsx
 import React, { useEffect, useState } from 'react';
 import { getAllClients, Client } from '../../services/clientService';
+import EditClientModal from './EditClientModal';
 
 const ClientManagementPage: React.FC = () => {
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const fetchClients = async () => {
+    try {
+      const allClients = await getAllClients();
+      setClients(allClients);
+    } catch (error) {
+      console.error("Error fetching clients:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchClients = async () => {
-      try {
-        const allClients = await getAllClients();
-        setClients(allClients);
-      } catch (error) {
-        console.error("Error fetching clients:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchClients();
   }, []);
+
+  const handleEditClick = (client: Client) => {
+    setSelectedClient(client);
+    setIsModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setSelectedClient(null);
+  };
+
+  const handleClientUpdated = () => {
+    fetchClients(); // Re-fetch clients to show updated data
+  };
 
   const filteredClients = clients.filter(client =>
     client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -68,13 +85,18 @@ const ClientManagementPage: React.FC = () => {
                 <td className="px-6 py-4 whitespace-nowrap">{client.phone}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                   <button className="text-indigo-600 hover:text-indigo-900">Ver</button>
-                  <button className="text-yellow-600 hover:text-yellow-900 ml-4">Editar</button>
+                  <button onClick={() => handleEditClick(client)} className="text-yellow-600 hover:text-yellow-900 ml-4">Editar</button>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+      <EditClientModal
+        client={selectedClient}
+        onClose={handleCloseModal}
+        onClientUpdated={handleClientUpdated}
+      />
     </div>
   );
 };
