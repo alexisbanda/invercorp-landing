@@ -1,6 +1,6 @@
 // src/services/clientService.ts
 import { db } from '../firebase-config';
-import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, setDoc, serverTimestamp, collection, getDocs, query, where } from 'firebase/firestore';
 
 // Define la interfaz para los datos del nuevo cliente
 export interface NewClientData {
@@ -10,6 +10,17 @@ export interface NewClientData {
     phone: string;
     cedula: string;
     comment: string;
+}
+
+export interface Client {
+    id: string;
+    name: string;
+    email: string;
+    phone: string;
+    cedula: string;
+    comment: string;
+    role: string;
+    createdAt: any;
 }
 
 /**
@@ -69,4 +80,14 @@ export const createClientProfile = async (clientData: NewClientData): Promise<st
     });
 
     return uid;
+};
+
+export const getAllClients = async (): Promise<Client[]> => {
+    const q = query(collection(db, "users"), where("role", "==", "client"));
+    const querySnapshot = await getDocs(q);
+    const clients: Client[] = [];
+    querySnapshot.forEach((doc) => {
+        clients.push({ id: doc.id, ...doc.data() } as Client);
+    });
+    return clients;
 };
