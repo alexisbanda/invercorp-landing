@@ -37,6 +37,7 @@ function initializeFirebaseAdmin() {
 
 // --- Handler de la función ---
 const handler: Handler = async (event: HandlerEvent) => {
+  console.log('createUser function invoked');
   if (event.httpMethod !== 'POST') {
     return {
       statusCode: 405,

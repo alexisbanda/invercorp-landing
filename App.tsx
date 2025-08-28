@@ -32,6 +32,11 @@ import AdminProgrammedSavingDetailPage from './components/admin/AdminProgrammedS
 import NewClientPage from './components/admin/NewClientPage';
 import AdminNewLoanForm from './components/admin/AdminNewLoanForm';
 import ClientManagementPage from './components/admin/ClientManagementPage';
+import ServiceManagementPage from './components/admin/ServiceManagementPage';
+import NewServiceForm from './components/admin/NewServiceForm';
+import ServiceDetailPage from './components/admin/ServiceDetailPage';
+import ClientServiceDetailPage from './components/ClientServiceDetailPage';
+import ClientServiceDetailPage from './components/ClientServiceDetailPage';
 
 function App() {
     return (
@@ -53,6 +58,7 @@ function App() {
                     <Route path="/portal/ahorros" element={<ProgrammedSavingsPage />} />
                     <Route path="/portal/ahorros/nuevo" element={<NewProgrammedSavingForm />} />
                     <Route path="/portal/ahorros/:id" element={<ProgrammedSavingDetailPage />} />
+                    <Route path="/portal/services/:serviceId" element={<ClientServiceDetailPage />} />
                 </Route>
 
                 {/* --- NUEVA ESTRUCTURA: Rutas de Administración con Layout --- */}
@@ -81,6 +87,11 @@ function App() {
                     <Route path="/portal/admin/loans/new" element={<AdminNewLoanForm />} />
                     <Route path="/portal/admin/loans/:loanId" element={<LoanInstallmentsPage />} />
                     <Route path="/portal/admin/clients" element={<ClientManagementPage />} />
+
+                    {/* Rutas para Servicios No Financieros */}
+                    <Route path="/portal/admin/services" element={<ServiceManagementPage />} />
+                    <Route path="/portal/admin/services/new" element={<NewServiceForm />} />
+                    <Route path="/portal/admin/services/:serviceId" element={<ServiceDetailPage />} />
                 </Route>
             </Routes>
         </Router>

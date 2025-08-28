@@ -5,6 +5,7 @@ import { Link } from 'react-router-dom';
 import { getLoansForCurrentUser, reportPaymentForInstallment } from '../services/loanService';
 import { Loan, LoanStatus } from '../types';
 import { toast } from 'react-hot-toast'; // NUEVO: Importaciones para toasts
+import { ClientServicesList } from './ClientServicesList';
 
 // --- Iconos para una UI más visual ---
 const DollarSignIcon: React.FC<{ className?: string }> = ({ className }) => (
@@ -318,6 +319,9 @@ export const DashboardPage: React.FC = () => {
     return (
         <>
             {renderContent()}
+            <div className="mt-8">
+                <ClientServicesList />
+            </div>
         </>
     );
 };

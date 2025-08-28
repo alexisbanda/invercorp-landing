@@ -123,6 +123,7 @@ export const AdminHeader: React.FC = () => {
                     <NavLink to="/portal/admin/management" className={mobileNavLinkClass} onClick={() => setIsMobileMenuOpen(false)}>Préstamos</NavLink>
                     <NavLink to="/portal/admin/savings" className={mobileNavLinkClass} onClick={() => setIsMobileMenuOpen(false)}>Planes de Ahorro</NavLink>
                     <NavLink to="/portal/admin/clients" className={mobileNavLinkClass} onClick={() => setIsMobileMenuOpen(false)}>Clientes</NavLink>
+                    <NavLink to="/portal/admin/services" className={mobileNavLinkClass} onClick={() => setIsMobileMenuOpen(false)}>Servicios</NavLink>
                     <NavLink to="/portal/admin/reports" className={mobileNavLinkClass} onClick={() => setIsMobileMenuOpen(false)}>Reportes</NavLink>
                 </div>
                 <div className="pt-4 pb-3 border-t border-gray-700">

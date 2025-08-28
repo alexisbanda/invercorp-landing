@@ -43,6 +43,10 @@ const NewEntryButton: React.FC = () => {
                         <Link to="/portal/admin/loans/new" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" role="menuitem" onClick={() => setIsOpen(false)}>
                             Nuevo Préstamo
                         </Link>
+                        <div className="border-t border-gray-100"></div>
+                        <Link to="/portal/admin/services/new" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" role="menuitem" onClick={() => setIsOpen(false)}>
+                            Nuevo Servicio
+                        </Link>
                     </div>
                 </div>
             )}
