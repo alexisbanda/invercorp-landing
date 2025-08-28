@@ -11,6 +11,7 @@ const NewClientPage: React.FC = () => {
         password: '', // Campo de contraseña añadido
         phone: '',
         cedula: '',
+        numeroCartola: '',
         comment: '',
         serviceType: 'saving',
     });
@@ -56,123 +57,139 @@ const NewClientPage: React.FC = () => {
     };
 
     return (
-        <div className="p-6">
-            <h1 className="text-2xl font-bold mb-4">Crear Nuevo Cliente</h1>
-            <form onSubmit={handleSubmit} className="max-w-lg bg-white p-8 rounded-lg shadow">
-                {error && <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">{error}</div>}
-                
-                <div className="mb-4">
-                    <label htmlFor="name" className="block text-gray-700 text-sm font-bold mb-2">
-                        Nombre Completo del Cliente
-                    </label>
-                    <input
-                        type="text"
-                        id="name"
-                        name="name"
-                        value={formData.name}
-                        onChange={handleChange}
-                        className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                        required
-                    />
-                </div>
+        <div className="p-6 bg-gray-100 min-h-screen flex items-center justify-center">
+            <div className="max-w-2xl w-full bg-white p-8 rounded-lg shadow-xl border border-gray-200">
+                <h1 className="text-3xl font-extrabold text-gray-800 mb-6 text-center">Crear Nuevo Cliente</h1>
+                <form onSubmit={handleSubmit} className="space-y-6">
+                    {error && <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">{error}</div>}
+                    
+                    <div>
+                        <label htmlFor="name" className="block text-sm font-semibold text-gray-700 mb-2">
+                            Nombre Completo del Cliente
+                        </label>
+                        <input
+                            type="text"
+                            id="name"
+                            name="name"
+                            value={formData.name}
+                            onChange={handleChange}
+                            className="mt-1 block w-full px-4 py-2 text-base border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                            required
+                        />
+                    </div>
 
-                <div className="mb-4">
-                    <label htmlFor="email" className="block text-gray-700 text-sm font-bold mb-2">
-                        Correo Electrónico
-                    </label>
-                    <input
-                        type="email"
-                        id="email"
-                        name="email"
-                        value={formData.email}
-                        onChange={handleChange}
-                        className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                        required
-                    />
-                </div>
+                    <div>
+                        <label htmlFor="email" className="block text-sm font-semibold text-gray-700 mb-2">
+                            Correo Electrónico
+                        </label>
+                        <input
+                            type="email"
+                            id="email"
+                            name="email"
+                            value={formData.email}
+                            onChange={handleChange}
+                            className="mt-1 block w-full px-4 py-2 text-base border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                            required
+                        />
+                    </div>
 
-                {/* --- CAMPO DE CONTRASEÑA AÑADIDO --- */}
-                <div className="mb-4">
-                    <label htmlFor="password" className="block text-gray-700 text-sm font-bold mb-2">
-                        Contraseña Temporal
-                    </label>
-                    <input
-                        type="password"
-                        id="password"
-                        name="password"
-                        value={formData.password}
-                        onChange={handleChange}
-                        className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                        required
-                    />
-                </div>
+                    <div>
+                        <label htmlFor="password" className="block text-sm font-semibold text-gray-700 mb-2">
+                            Contraseña Temporal
+                        </label>
+                        <input
+                            type="password"
+                            id="password"
+                            name="password"
+                            value={formData.password}
+                            onChange={handleChange}
+                            className="mt-1 block w-full px-4 py-2 text-base border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                            required
+                        />
+                    </div>
 
-                <div className="mb-4">
-                    <label htmlFor="phone" className="block text-gray-700 text-sm font-bold mb-2">
-                        Número de Teléfono
-                    </label>
-                    <input
-                        type="tel"
-                        id="phone"
-                        name="phone"
-                        value={formData.phone}
-                        onChange={handleChange}
-                        className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                        required
-                    />
-                </div>
+                    <div>
+                        <label htmlFor="phone" className="block text-sm font-semibold text-gray-700 mb-2">
+                            Número de Teléfono
+                        </label>
+                        <input
+                            type="tel"
+                            id="phone"
+                            name="phone"
+                            value={formData.phone}
+                            onChange={handleChange}
+                            className="mt-1 block w-full px-4 py-2 text-base border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                            required
+                        />
+                    </div>
 
-                <div className="mb-4">
-                    <label htmlFor="cedula" className="block text-gray-700 text-sm font-bold mb-2">
-                        Cédula de Identidad o RUC
-                    </label>
-                    <input
-                        type="text"
-                        id="cedula"
-                        name="cedula"
-                        value={formData.cedula}
-                        onChange={handleChange}
-                        className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                        required
-                    />
-                </div>
+                    <div>
+                        <label htmlFor="cedula" className="block text-sm font-semibold text-gray-700 mb-2">
+                            Cédula de Identidad o RUC
+                        </label>
+                        <input
+                            type="text"
+                            id="cedula"
+                            name="cedula"
+                            value={formData.cedula}
+                            onChange={handleChange}
+                            className="mt-1 block w-full px-4 py-2 text-base border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                            required
+                        />
+                    </div>
 
-                <div className="mb-4">
-                    <label htmlFor="comment" className="block text-gray-700 text-sm font-bold mb-2">
-                        Comentario (Opcional)
-                    </label>
-                    <textarea
-                        id="comment"
-                        name="comment"
-                        value={formData.comment}
-                        onChange={handleChange}
-                        className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                        rows={3}
-                    />
-                </div>
+                    <div>
+                        <label htmlFor="numeroCartola" className="block text-sm font-semibold text-gray-700 mb-2">
+                            Número de Cartola
+                        </label>
+                        <input
+                            type="text"
+                            id="numeroCartola"
+                            name="numeroCartola"
+                            value={formData.numeroCartola}
+                            onChange={handleChange}
+                            className="mt-1 block w-full px-4 py-2 text-base border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                            required
+                        />
+                    </div>
 
-                <div className="mb-6">
-                    <label htmlFor="serviceType" className="block text-gray-700 text-sm font-bold mb-2">
-                        Servicio Inicial
-                    </label>
-                    <select
-                        id="serviceType"
-                        name="serviceType"
-                        value={formData.serviceType}
-                        onChange={handleChange}
-                        className="shadow border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                    >
-                        <option value="saving">Ahorro Programado</option>
-                        <option value="loan">Préstamo</option>
-                    </select>
-                </div>
+                    <div>
+                        <label htmlFor="comment" className="block text-sm font-semibold text-gray-700 mb-2">
+                            Comentario (Opcional)
+                        </label>
+                        <textarea
+                            id="comment"
+                            name="comment"
+                            value={formData.comment}
+                            onChange={handleChange}
+                            className="mt-1 block w-full px-4 py-2 text-base border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                            rows={3}
+                        />
+                    </div>
 
-                <div className="flex items-center justify-between">
-                    <button type="submit" disabled={isLoading} className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline disabled:bg-blue-300">
-                        {isLoading ? 'Creando...' : 'Crear Cliente y Continuar'}
-                    </button>
-                </div>
-            </form>
+                    <div>
+                        <label htmlFor="serviceType" className="block text-sm font-semibold text-gray-700 mb-2">
+                            Servicio Inicial
+                        </label>
+                        <select
+                            id="serviceType"
+                            name="serviceType"
+                            value={formData.serviceType}
+                            onChange={handleChange}
+                            className="mt-1 block w-full px-4 py-2 text-base border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                        >
+                            <option value="saving">Ahorro Programado</option>
+                            <option value="loan">Préstamo</option>
+                        </select>
+                    </div>
+
+                    <div className="pt-6">
+                        <button type="submit" disabled={isLoading} className="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-base font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:bg-blue-300 disabled:cursor-not-allowed">
+                            {isLoading ? 'Creando...' : 'Crear Cliente y Continuar'}
+                        </button>
+                    </div>
+                </form>
+            </div>
         </div>
     );
 };

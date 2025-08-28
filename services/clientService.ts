@@ -10,6 +10,7 @@ export interface NewClientData {
     password: string; // Se necesita la contraseña para crear el usuario en Auth
     phone: string;
     cedula: string;
+    numeroCartola: string;
     comment: string;
 }
 
@@ -19,6 +20,7 @@ export interface Client {
     email: string;
     phone: string;
     cedula: string;
+    numeroCartola: string;
     comment: string;
     role: string;
     createdAt: any;
@@ -34,7 +36,7 @@ export interface Client {
  */
 export const createClientProfile = async (clientData: NewClientData): Promise<string> => {
     // Desestructuramos para mayor claridad y validación temprana
-    const { email, password, name, phone, cedula, comment } = clientData;
+    const { email, password, name, phone, cedula, numeroCartola, comment } = clientData;
 
     // Aunque el backend valida, una validación temprana aquí puede dar errores más rápidos en desarrollo.
     if (!email || !password || !name) {
@@ -75,6 +77,7 @@ export const createClientProfile = async (clientData: NewClientData): Promise<st
         email,
         phone,
         cedula,
+        numeroCartola,
         comment,
         role: 'client',
         createdAt: serverTimestamp()

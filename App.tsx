@@ -36,7 +36,7 @@ import ServiceManagementPage from './components/admin/ServiceManagementPage';
 import NewServiceForm from './components/admin/NewServiceForm';
 import ServiceDetailPage from './components/admin/ServiceDetailPage';
 import ClientServiceDetailPage from './components/ClientServiceDetailPage';
-import ClientServiceDetailPage from './components/ClientServiceDetailPage';
+import AdvisorManagementPage from './components/admin/AdvisorManagementPage';
 
 function App() {
     return (
@@ -92,6 +92,7 @@ function App() {
                     <Route path="/portal/admin/services" element={<ServiceManagementPage />} />
                     <Route path="/portal/admin/services/new" element={<NewServiceForm />} />
                     <Route path="/portal/admin/services/:serviceId" element={<ServiceDetailPage />} />
+                    <Route path="/portal/admin/advisors" element={<AdvisorManagementPage />} />
                 </Route>
             </Routes>
         </Router>

@@ -36,6 +36,8 @@ export interface NonFinancialService {
     historialDeEstados: StatusHistoryEntry[];
     fechaSolicitud: Timestamp;
     fechaUltimaActualizacion: Timestamp;
+    advisorId?: string;
+    advisorName?: string;
 }
 
 // Datos necesarios para crear un nuevo servicio
@@ -44,6 +46,8 @@ export interface NewServiceData {
     userName: string;
     tipoDeServicio: ServiceType;
     descripcionCliente: string;
+    advisorId?: string;
+    advisorName?: string;
 }
 
 /**
@@ -52,7 +56,7 @@ export interface NewServiceData {
  * @returns El ID del nuevo documento creado.
  */
 export const createService = async (data: NewServiceData): Promise<string> => {
-    const { clienteId, userName, tipoDeServicio, descripcionCliente } = data;
+    const { clienteId, userName, tipoDeServicio, descripcionCliente, advisorId, advisorName } = data;
     const currentUser = auth.currentUser;
 
     if (!currentUser) {
@@ -77,6 +81,8 @@ export const createService = async (data: NewServiceData): Promise<string> => {
         flujoCompleto: flow,
         fechaSolicitud: now,
         fechaUltimaActualizacion: now,
+        advisorId,
+        advisorName,
         historialDeEstados: [
             {
                 status: initialStatus,

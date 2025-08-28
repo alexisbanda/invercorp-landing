@@ -4,7 +4,8 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import toast, { Toaster } from 'react-hot-toast';
 import { createLoan } from '../../services/loanService'; // Assuming createLoan can handle termValue and paymentFrequency
 import { getAllClients, getUserProfile } from '../../services/userService';
-import { UserProfile } from '../../types';
+import { getAllAdvisors } from '../../services/advisorService';
+import { Advisor, UserProfile } from '../../types';
 
 // Hook para parsear query params de la URL
 const useQuery = () => {
@@ -17,6 +18,7 @@ const AdminNewLoanForm: React.FC = () => {
     const clientIdFromUrl = query.get('clientId');
 
     const [allClients, setAllClients] = useState<UserProfile[]>([]);
+    const [advisors, setAdvisors] = useState<Advisor[]>([]);
     const [selectedClientId, setSelectedClientId] = useState<string>(clientIdFromUrl || '');
     const [client, setClient] = useState<UserProfile | null>(null);
     const [isLoadingClients, setIsLoadingClients] = useState(true);
@@ -31,6 +33,7 @@ const AdminNewLoanForm: React.FC = () => {
         paymentFrequency: 'Mensual', // Frecuencia de pago seleccionada
         termValue: 12, // Valor del plazo (ej. 12 meses, 24 quincenas, 48 semanas)
         disbursementDate: new Date().toISOString().split('T')[0], // Fecha de desembolso, formato YYYY-MM-DD
+        advisorId: '',
     });
 
     // Estado derivado para la unidad de plazo a mostrar en la UI
@@ -63,6 +66,17 @@ const AdminNewLoanForm: React.FC = () => {
             }
         };
         fetchClients();
+
+        const fetchAdvisors = async () => {
+            try {
+                const advisorsData = await getAllAdvisors();
+                setAdvisors(advisorsData);
+            } catch (err) {
+                console.error("Error fetching advisors:", err);
+                setError('Error al cargar la lista de asesores.');
+            }
+        };
+        fetchAdvisors();
     }, []);
 
     // Cargar datos del cliente seleccionado
@@ -138,6 +152,8 @@ const AdminNewLoanForm: React.FC = () => {
         setIsSubmitting(true);
         const toastId = toast.loading('Creando préstamo y generando cuotas...');
 
+        const selectedAdvisor = advisors.find(a => a.id === formData.advisorId);
+
         try {
             // Se asume que createLoan ahora acepta termValue y paymentFrequency
             // y que la lógica para calcular el número total de períodos se manejará en el servicio.
@@ -151,6 +167,8 @@ const AdminNewLoanForm: React.FC = () => {
                 paymentFrequency: formData.paymentFrequency, // Pasa la frecuencia
                 termValue: formData.termValue, // Pasa el valor del plazo
                 disbursementDate: formData.disbursementDate,
+                advisorId: selectedAdvisor?.id,
+                advisorName: selectedAdvisor?.nombre,
             });
 
             toast.success(`Préstamo ${newLoanId} creado con éxito.`, { id: toastId });
@@ -204,6 +222,33 @@ const AdminNewLoanForm: React.FC = () => {
                     {allClients.length === 0 && !isLoadingClients && (
                         <p className="text-sm text-gray-500 mt-3 text-center">
                             No hay clientes disponibles. <a href="/portal/admin/clients/new" className="text-blue-600 hover:text-blue-800 hover:underline font-medium">Crea uno nuevo aquí</a>.
+                        </p>
+                    )}
+                </div>
+
+                {/* Sección de Selección de Asesor */}
+                <div className="mb-6 border-b pb-6">
+                    <label htmlFor="advisor-select" className="block text-sm font-semibold text-gray-700 mb-2">
+                        Seleccionar Asesor
+                    </label>
+                    <select
+                        id="advisor-select"
+                        name="advisorId"
+                        value={formData.advisorId}
+                        onChange={handleChange}
+                        className="mt-1 block w-full px-4 py-2 text-base border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 transition duration-150 ease-in-out"
+                        disabled={advisors.length === 0}
+                    >
+                        <option value="">-- Elige un asesor --</option>
+                        {advisors.map(a => (
+                            <option key={a.id} value={a.id}>
+                                {a.nombre}
+                            </option>
+                        ))}
+                    </select>
+                    {advisors.length === 0 && (
+                        <p className="text-sm text-gray-500 mt-3 text-center">
+                            No hay asesores disponibles. <a href="/portal/admin/advisors" className="text-blue-600 hover:text-blue-800 hover:underline font-medium">Crea uno nuevo aquí</a>.
                         </p>
                     )}
                 </div>

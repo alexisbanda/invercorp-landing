@@ -9,9 +9,10 @@ export enum UserRole {
 export interface UserProfile {
     id: string;
     email: string;
-    name: string;
+    name:string;
     role: UserRole;
     cedula: string;
+    numeroCartola?: string;
 }
 
 export interface Installment {
@@ -62,6 +63,8 @@ export interface Loan {
     userCedula: string;
     installmentsTotal: number;
     installmentAmount: number;
+    advisorId?: string;
+    advisorName?: string;
 }
 
 // --- NUEVO: AHORRO PROGRAMADO ---
@@ -106,4 +109,13 @@ export interface ProgrammedSaving {
     ultimaActualizacion: Date; // timestamp
     adminCreadorId: string;
     depositos?: Deposit[]; // This could be a subcollection
+    advisorId?: string;
+    advisorName?: string;
+}
+
+export interface Advisor {
+    id: string;
+    nombre: string;
+    telefono: string;
+    correo: string;
 }

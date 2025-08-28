@@ -194,8 +194,10 @@ const AdminProgrammedSavingDetailPage: React.FC = () => {
                         <div className="space-y-3 text-sm">
                             <p><strong>Nombre:</strong> {client.name}</p>
                             <p><strong>Cédula:</strong> {client.cedula}</p>
+                            <p><strong>No. Cartola:</strong> {client.numeroCartola}</p>
                             <p><strong>Email:</strong> {client.email}</p>
                             <p><strong>Teléfono:</strong> {client.phone}</p>
+                            <p><strong>Asesor:</strong> {plan.advisorName}</p>
                         </div>
                     </div>
                 </div>

@@ -4,6 +4,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import toast, { Toaster } from 'react-hot-toast';
 import { getServiceById, updateServiceStatus, NonFinancialService, StatusHistoryEntry } from '../../services/nonFinancialService';
+import { getUserProfile } from '../../services/userService';
+import { UserProfile } from '../../types';
 import { formatServiceType } from '../../services/serviceDefinitions';
 import { Timestamp } from 'firebase/firestore';
 
@@ -22,6 +24,7 @@ import { StatusHistory } from '../shared/StatusHistory';
 const ServiceDetailPage: React.FC = () => {
     const { serviceId } = useParams<{ serviceId: string }>();
     const [service, setService] = useState<NonFinancialService | null>(null);
+    const [client, setClient] = useState<UserProfile | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isUpdating, setIsUpdating] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -34,6 +37,8 @@ const ServiceDetailPage: React.FC = () => {
             const data = await getServiceById(serviceId);
             if (data) {
                 setService(data);
+                const clientData = await getUserProfile(data.clienteId);
+                setClient(clientData);
             } else {
                 setError('El servicio solicitado no fue encontrado.');
             }
@@ -95,6 +100,8 @@ const ServiceDetailPage: React.FC = () => {
                             <div>
                                 <h1 className="text-2xl font-bold text-gray-800">{formatServiceType(service.tipoDeServicio)}</h1>
                                 <p className="text-sm text-gray-500">Cliente: {service.userName}</p>
+                                <p className="text-sm text-gray-500">No. Cartola: {client?.numeroCartola}</p>
+                                <p className="text-sm text-gray-500">Asesor: {service.advisorName}</p>
                             </div>
                             <span className={`px-3 py-1 text-sm font-semibold rounded-full ${service.estadoGeneral === 'FINALIZADO' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'}`}>
                                 {service.estadoGeneral.replace('_', ' ')}

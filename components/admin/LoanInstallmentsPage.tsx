@@ -5,7 +5,8 @@ import { useParams, Link } from 'react-router-dom';
 import toast, { Toaster } from 'react-hot-toast';
 // Importamos las funciones correctas del servicio
 import { getLoanById, approvePayment, rejectPayment, reportPaymentForInstallment } from '@/services/loanService';
-import { Loan, Installment } from '@/types';
+import { getUserProfile } from '../../services/userService';
+import { Loan, Installment, UserProfile } from '@/types';
 import { Timestamp } from 'firebase/firestore'; // Es una buena práctica importar el tipo
 
 // --- Definición de tipo para el historial de estados ---
@@ -141,6 +142,7 @@ const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
 export const LoanInstallmentsPage = () => {
     const { loanId } = useParams<{ loanId: string }>();
     const [loan, setLoan] = useState<Loan | null>(null);
+    const [client, setClient] = useState<UserProfile | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     
@@ -164,6 +166,8 @@ export const LoanInstallmentsPage = () => {
             if (loanData) {
                 loanData.installments.sort((a, b) => a.installmentNumber - b.installmentNumber);
                 setLoan(loanData);
+                const clientData = await getUserProfile(loanData.userId);
+                setClient(clientData);
             }
             else setError('El préstamo solicitado no fue encontrado.');
         } catch (err) {
@@ -275,9 +279,11 @@ export const LoanInstallmentsPage = () => {
                     <h1 className="text-2xl font-bold mb-2">Detalles del Préstamo: {loan.id}</h1>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                         <div><strong>Cliente:</strong> {loan.userName}</div>
+                        <div><strong>No. Cartola:</strong> {client?.numeroCartola}</div>
                         <div><strong>Email:</strong> {loan.userEmail}</div>
                         <div><strong>Monto:</strong> ${loan.loanAmount.toFixed(2)} {loan.currency}</div>
                         <div><strong>Estado Préstamo:</strong> <StatusBadge status={loan.status} /></div>
+                        <div><strong>Asesor:</strong> {loan.advisorName}</div>
                     </div>
                 </div>
 

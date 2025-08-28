@@ -4,14 +4,17 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast, { Toaster } from 'react-hot-toast';
 import { getAllClients, UserProfile } from '../../services/userService';
+import { getAllAdvisors } from '../../services/advisorService';
 import { createService, NewServiceData } from '../../services/nonFinancialService';
 import { serviceTypeNames, formatServiceType, ServiceType } from '../../services/serviceDefinitions';
+import { Advisor } from '../../types';
 
 const NewServiceForm: React.FC = () => {
     const navigate = useNavigate();
 
     // Estados del componente
     const [clients, setClients] = useState<UserProfile[]>([]);
+    const [advisors, setAdvisors] = useState<Advisor[]>([]);
     const [isLoadingClients, setIsLoadingClients] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
     
@@ -20,10 +23,12 @@ const NewServiceForm: React.FC = () => {
         clienteId: string;
         tipoDeServicio: ServiceType | '';
         descripcionCliente: string;
+        advisorId: string;
     }>({ 
         clienteId: '',
         tipoDeServicio: '',
-        descripcionCliente: ''
+        descripcionCliente: '',
+        advisorId: '',
     });
 
     // Cargar clientes al montar el componente
@@ -40,6 +45,17 @@ const NewServiceForm: React.FC = () => {
             }
         };
         fetchClients();
+
+        const fetchAdvisors = async () => {
+            try {
+                const advisorsData = await getAllAdvisors();
+                setAdvisors(advisorsData);
+            } catch (err) {
+                toast.error('Error al cargar la lista de asesores.');
+                console.error(err);
+            }
+        };
+        fetchAdvisors();
     }, []);
 
     // Manejador de cambios en el formulario
@@ -69,12 +85,16 @@ const NewServiceForm: React.FC = () => {
         setIsSubmitting(true);
         const toastId = toast.loading('Creando solicitud de servicio...');
 
+        const selectedAdvisor = advisors.find(a => a.id === formData.advisorId);
+
         try {
             const newServiceData: NewServiceData = {
                 clienteId,
                 userName: selectedClient.name,
                 tipoDeServicio,
                 descripcionCliente,
+                advisorId: selectedAdvisor?.id,
+                advisorName: selectedAdvisor?.nombre,
             };
 
             const newServiceId = await createService(newServiceData);
@@ -120,6 +140,33 @@ const NewServiceForm: React.FC = () => {
                                 </option>
                             ))}
                         </select>
+                    </div>
+
+                    {/* Selección de Asesor */}
+                    <div>
+                        <label htmlFor="advisor-select" className="block text-sm font-semibold text-gray-700 mb-2">
+                            Seleccionar Asesor
+                        </label>
+                        <select
+                            id="advisor-select"
+                            name="advisorId"
+                            value={formData.advisorId}
+                            onChange={handleChange}
+                            className="mt-1 block w-full px-4 py-2 text-base border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                            disabled={advisors.length === 0}
+                        >
+                            <option value="">-- Elige un asesor --</option>
+                            {advisors.map(a => (
+                                <option key={a.id} value={a.id}>
+                                    {a.nombre}
+                                </option>
+                            ))}
+                        </select>
+                        {advisors.length === 0 && (
+                            <p className="text-sm text-gray-500 mt-3 text-center">
+                                No hay asesores disponibles. <a href="/portal/admin/advisors" className="text-blue-600 hover:text-blue-800 hover:underline font-medium">Crea uno nuevo aquí</a>.
+                            </p>
+                        )}
                     </div>
 
                     {/* Selección de Tipo de Servicio */}

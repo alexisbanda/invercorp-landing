@@ -91,6 +91,7 @@ const ClientManagementPage: React.FC = () => {
             <tr>
               <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nombre</th>
               <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cédula</th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">No. Cartola</th>
               <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
               <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Teléfono</th>
               <th scope="col" className="relative px-6 py-3">
@@ -103,6 +104,7 @@ const ClientManagementPage: React.FC = () => {
               <tr key={client.id}>
                 <td className="px-6 py-4 whitespace-nowrap">{client.name}</td>
                 <td className="px-6 py-4 whitespace-nowrap">{client.cedula}</td>
+                <td className="px-6 py-4 whitespace-nowrap">{client.numeroCartola}</td>
                 <td className="px-6 py-4 whitespace-nowrap">{client.email}</td>
                 <td className="px-6 py-4 whitespace-nowrap">{client.phone}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
