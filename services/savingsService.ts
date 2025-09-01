@@ -284,3 +284,42 @@ export const getAllProgrammedSavings = async (): Promise<ProgrammedSaving[]> => 
     const querySnapshot = await getDocs(savingsRef);
     return querySnapshot.docs.map(doc => doc.data() as ProgrammedSaving);
 };
+
+/**
+ * Elimina un registro de depósito de un plan de ahorro.
+ * Si el depósito estaba confirmado, reajusta el saldo del plan.
+ * @param userId - El ID del cliente.
+ * @param numeroCartola - El ID del plan de ahorro.
+ * @param depositId - El ID del depósito a eliminar.
+ */
+export const deleteDeposit = async (userId: string, numeroCartola: number, depositId: string): Promise<void> => {
+    const planRef = doc(db, `users/${userId}/ahorrosProgramados`, String(numeroCartola));
+    const depositRef = doc(planRef, 'depositos', depositId);
+
+    await runTransaction(db, async (transaction) => {
+        const planDoc = await transaction.get(planRef);
+        const depositDoc = await transaction.get(depositRef);
+
+        if (!planDoc.exists()) {
+            throw new Error("El plan de ahorro no existe.");
+        }
+        if (!depositDoc.exists()) {
+            throw new Error("El depósito no existe o ya fue eliminado.");
+        }
+
+        const planData = planDoc.data() as ProgrammedSaving;
+        const depositData = depositDoc.data() as Deposit;
+
+        // Si el depósito estaba confirmado, hay que restar su monto del saldo actual.
+        if (depositData.estadoDeposito === DepositStatus.CONFIRMADO) {
+            const newSaldo = (planData.saldoActual || 0) - depositData.montoDeposito;
+            transaction.update(planRef, { 
+                saldoActual: newSaldo,
+                ultimaActualizacion: new Date()
+            });
+        }
+
+        // Finalmente, eliminar el depósito.
+        transaction.delete(depositRef);
+    });
+};

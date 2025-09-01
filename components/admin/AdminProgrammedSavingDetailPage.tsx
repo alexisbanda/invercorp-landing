@@ -4,7 +4,7 @@ import { useParams, Link } from 'react-router-dom';
 import toast, { Toaster } from 'react-hot-toast';
 import { useAuth } from '../../contexts/AuthContext';
 import { ProgrammedSaving, Deposit, UserProfile, DepositStatus } from '../../types';
-import { getProgrammedSavingById, getDepositsForSavingPlan, confirmDeposit, rejectDeposit, addManualDepositByAdmin } from '../../services/savingsService'; // Importar la nueva función
+import { getProgrammedSavingById, getDepositsForSavingPlan, confirmDeposit, rejectDeposit, addManualDepositByAdmin, deleteDeposit } from '../../services/savingsService'; // Importar la nueva función
 import { getUserProfile } from '../../services/userService';
 
 // Helper para formatear fechas
@@ -123,6 +123,26 @@ const AdminProgrammedSavingDetailPage: React.FC = () => {
         }
     };
 
+    const handleDelete = async (deposit: Deposit) => {
+        if (!currentUser || !clienteId || isNaN(numeroCartola)) return;
+
+        const confirmationMessage = deposit.estadoDeposito === DepositStatus.CONFIRMADO
+            ? `¿Estás seguro de eliminar este depósito? El monto de ${deposit.montoDeposito.toFixed(2)} será RESTADO del saldo actual del cliente.`
+            : `¿Estás seguro de eliminar este registro de depósito? Esta acción no se puede deshacer.`
+
+        if (window.confirm(confirmationMessage)) {
+            const toastId = toast.loading('Eliminando depósito...');
+            try {
+                await deleteDeposit(clienteId, numeroCartola, deposit.depositId);
+                toast.success('Depósito eliminado con éxito.', { id: toastId });
+                fetchData(); // Refrescar datos
+            } catch (err) {
+                toast.error('Error al eliminar el depósito.', { id: toastId });
+                console.error(err);
+            }
+        }
+    };
+
     const handleManualDepositSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!currentUser || !clienteId || isNaN(numeroCartola) || manualDepositAmount <= 0) {
@@ -230,12 +250,15 @@ const AdminProgrammedSavingDetailPage: React.FC = () => {
                                         <td className="px-4 py-4 whitespace-nowrap"><DepositStatusBadge status={deposit.estadoDeposito} /></td>
                                         <td className="px-4 py-4 text-gray-600">{deposit.notaCliente || 'N/A'}</td>
                                         <td className="px-4 py-4 whitespace-nowrap text-center">
-                                            {deposit.estadoDeposito === DepositStatus.EN_VERIFICACION && (
-                                                <div className="flex items-center justify-center gap-2">
-                                                    <button onClick={() => handleConfirm(deposit)} className="bg-green-500 hover:bg-green-600 text-white font-semibold py-1 px-2 rounded-md text-xs transition-colors">Confirmar</button>
-                                                    <button onClick={() => handleReject(deposit)} className="bg-red-500 hover:bg-red-600 text-white font-semibold py-1 px-2 rounded-md text-xs transition-colors">Rechazar</button>
-                                                </div>
-                                            )}
+                                            <div className="flex items-center justify-center gap-2">
+                                                {deposit.estadoDeposito === DepositStatus.EN_VERIFICACION && (
+                                                    <>
+                                                        <button onClick={() => handleConfirm(deposit)} className="bg-green-500 hover:bg-green-600 text-white font-semibold py-1 px-2 rounded-md text-xs transition-colors">Confirmar</button>
+                                                        <button onClick={() => handleReject(deposit)} className="bg-red-500 hover:bg-red-600 text-white font-semibold py-1 px-2 rounded-md text-xs transition-colors">Rechazar</button>
+                                                    </>
+                                                )}
+                                                <button onClick={() => handleDelete(deposit)} className="bg-gray-400 hover:bg-gray-500 text-white font-semibold py-1 px-2 rounded-md text-xs transition-colors">Eliminar</button>
+                                            </div>
                                         </td>
                                     </tr>
                                 ))}
