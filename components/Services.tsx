@@ -38,6 +38,20 @@ const servicesData: ServiceItem[] = [
     title: "Psicología",
     description: "Bienestar personal, familiar y empresarial con apoyo profesional.",
     points: ["Psicopedagogía", "Orientación familiar", "Psicología clínica"]
+  },
+  {
+    imageSrc: "https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?auto=format&fit=crop&w=600&q=80",
+    imageAlt: "Terreno en venta",
+    title: "Venta de lotes de terreno",
+    description: "Invierte en terrenos con excelente ubicación y facilidades de pago.",
+    points: ["Ubicación estratégica", "Planes de financiamiento flexibles", "Asesoría legal incluida"]
+  },
+  {
+    imageSrc: "https://images.unsplash.com/photo-1519389950473-47ba0277781c?auto=format&fit=crop&w=600&q=80",
+    imageAlt: "Diseño web para PYMES",
+    title: "Diseño de landings web para PYMES",
+    description: "Impulsa tu negocio con una landing profesional y efectiva.",
+    points: ["Diseño personalizado", "Optimización para conversión", "Soporte y mantenimiento"]
   }
 ];
 
@@ -52,7 +66,7 @@ const Services: React.FC = () => {
             <p className="text-gray-600 max-w-2xl mx-auto mb-12">
               Nos encargamos de la parte compleja para que tú te concentres en crecer.
             </p>
-            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
               {servicesData.map(service => (
                   <div key={service.title} className="bg-white rounded-2xl shadow-md overflow-hidden service-card flex flex-col h-full">
                     <img src={service.imageSrc} alt={service.imageAlt} className="object-cover w-full h-40" loading="lazy" />
@@ -62,8 +76,6 @@ const Services: React.FC = () => {
                       <ul className="text-[#4CAF50] text-sm list-disc pl-5 text-left mb-4">
                         {service.points.map(point => <li key={point}>{point}</li>)}
                       </ul>
-
-                      {/* 5. AÑADE EL BOTÓN CONDICIONALMENTE */}
                       {isLoanSimulatorEnabled && service.title === 'Finanzas' && (
                           <div className="mt-auto">
                             <button
