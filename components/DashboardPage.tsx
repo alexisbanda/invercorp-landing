@@ -6,6 +6,7 @@ import { getLoansForCurrentUser, reportPaymentForInstallment } from '../services
 import { Loan, LoanStatus } from '../types';
 import { toast } from 'react-hot-toast'; // NUEVO: Importaciones para toasts
 import { ClientServicesList } from './ClientServicesList';
+import { ClientSavingsList } from './ClientSavingsList'; // Importar el nuevo componente
 
 // --- Iconos para una UI más visual ---
 const DollarSignIcon: React.FC<{ className?: string }> = ({ className }) => (
@@ -301,8 +302,8 @@ export const DashboardPage: React.FC = () => {
         if (loans.length === 0) {
             return (
                 <div className="text-center bg-white p-8 rounded-lg shadow-md">
-                    <h3 className="text-xl font-semibold text-gray-700">No tienes préstamos activos</h3>
-                    <p className="text-gray-500 mt-2">Cuando solicites un préstamo, aparecerá aquí.</p>
+                    <h3 className="text-xl font-semibold text-gray-700">No tienes préstamos activos por el momento</h3>
+                    <p className="text-gray-500 mt-2">Cuando solicites un préstamo, lo verás reflejado aquí.</p>
                 </div>
             );
         }
@@ -319,6 +320,9 @@ export const DashboardPage: React.FC = () => {
     return (
         <>
             {renderContent()}
+            <div className="mt-8">
+                <ClientSavingsList />
+            </div>
             <div className="mt-8">
                 <ClientServicesList />
             </div>
