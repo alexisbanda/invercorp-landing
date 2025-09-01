@@ -5,6 +5,21 @@ import { useAuth } from '../contexts/AuthContext';
 import { ProgrammedSaving, Deposit, DepositStatus } from '../types';
 import { getProgrammedSavingById, getDepositsForSavingPlan, addDepositToSavingPlan } from '../services/savingsService';
 
+// Helper para formatear fechas
+const formatDate = (date: any): string => {
+    if (!date) return 'N/A';
+    // Firestore Timestamps tienen un método toDate()
+    const d = date.toDate ? date.toDate() : new Date(date);
+    if (isNaN(d.getTime())) return 'Fecha inválida';
+    return new Intl.DateTimeFormat('es-EC', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    }).format(d);
+};
+
 const ProgrammedSavingDetailPage: React.FC = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
@@ -126,7 +141,7 @@ const ProgrammedSavingDetailPage: React.FC = () => {
                             <div key={dep.depositId} className="flex items-center justify-between p-4 border rounded-lg">
                                 <div>
                                     <p className="font-semibold text-lg">${dep.montoDeposito.toLocaleString()}</p>
-                                    <p className="text-sm text-gray-600">{new Date(dep.fechaDeposito).toLocaleDateString()}</p>
+                                    <p className="text-sm text-gray-600">{formatDate(dep.fechaDeposito)}</p>
                                     {dep.notaCliente && <p className="text-xs text-gray-500 mt-1">Nota: {dep.notaCliente}</p>}
                                 </div>
                                 <span className={`px-3 py-1 text-sm font-semibold rounded-full 
