@@ -18,7 +18,9 @@ import {
     ProgrammedSaving, 
     Deposit, 
     ProgrammedSavingStatus, 
-    DepositStatus 
+    DepositStatus, 
+    WithdrawalStatus,
+    Withdrawal
 } from '../types';
 
 // --- Ahorro Programado (ProgrammedSaving) ---
@@ -322,4 +324,68 @@ export const deleteDeposit = async (userId: string, numeroCartola: number, depos
         // Finalmente, eliminar el depósito.
         transaction.delete(depositRef);
     });
+};
+
+// --- Retiros (Withdrawals) ---
+
+/**
+ * Un administrador registra un retiro para un plan de ahorro.
+ * @param userId - El ID del cliente.
+ * @param numeroCartola - El ID del plan de ahorro.
+ * @param withdrawalData - Datos del retiro (monto, nota del admin).
+ * @param adminId - El ID del administrador que registra.
+ */
+export const registerWithdrawalByAdmin = async (
+    userId: string,
+    numeroCartola: number,
+    withdrawalData: { montoRetiro: number; notaAdmin?: string },
+    adminId: string
+): Promise<void> => {
+    const planRef = doc(db, `users/${userId}/ahorrosProgramados`, String(numeroCartola));
+    const withdrawalsRef = collection(planRef, 'retiros');
+    const newWithdrawalRef = doc(withdrawalsRef); // Genera un nuevo ID para el retiro
+
+    await runTransaction(db, async (transaction) => {
+        const planDoc = await transaction.get(planRef);
+        if (!planDoc.exists()) {
+            throw new Error("El plan de ahorro no existe.");
+        }
+
+        const planData = planDoc.data() as ProgrammedSaving;
+        const newSaldo = (planData.saldoActual || 0) - withdrawalData.montoRetiro;
+
+        if (newSaldo < 0) {
+            throw new Error("El monto del retiro no puede superar el saldo actual.");
+        }
+
+        const newWithdrawal: Withdrawal = {
+            withdrawalId: newWithdrawalRef.id,
+            montoRetiro: withdrawalData.montoRetiro,
+            fechaSolicitud: new Date(),
+            fechaProcesado: new Date(),
+            estadoRetiro: WithdrawalStatus.PROCESADO,
+            adminProcesadorId: adminId,
+            notaAdmin: withdrawalData.notaAdmin || 'Retiro procesado por administrador.',
+        };
+
+        transaction.set(newWithdrawalRef, newWithdrawal);
+
+        transaction.update(planRef, {
+            saldoActual: newSaldo,
+            ultimaActualizacion: new Date()
+        });
+    });
+};
+
+/**
+ * Obtiene todos los retiros de un plan de ahorro específico.
+ * @param userId - El ID del usuario.
+ * @param numeroCartola - El ID del plan de ahorro.
+ * @returns Un array con los retiros del plan.
+ */
+export const getWithdrawalsForSavingPlan = async (userId: string, numeroCartola: number): Promise<Withdrawal[]> => {
+    const withdrawalsRef = collection(db, `users/${userId}/ahorrosProgramados/${numeroCartola}/retiros`);
+    const q = query(withdrawalsRef);
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(doc => doc.data() as Withdrawal);
 };

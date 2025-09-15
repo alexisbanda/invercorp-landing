@@ -1,3 +1,4 @@
+// ...existing code...
 // components/admin/AdminProgrammedSavingDetailPage.tsx
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
@@ -35,11 +36,48 @@ const DepositStatusBadge: React.FC<{ status: DepositStatus }> = ({ status }) => 
 
 
 const AdminProgrammedSavingDetailPage: React.FC = () => {
+    // ...existing code...
+
+    // Handler para registrar retiro solicitado
+    const handleWithdrawalSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!currentUser || !clienteId || isNaN(numeroCartola) || withdrawalAmount <= 0) {
+            toast.error("El monto del retiro debe ser mayor a cero.");
+            return;
+        }
+
+        setIsSubmittingWithdrawal(true);
+        const toastId = toast.loading('Registrando retiro...');
+        try {
+            // Llama al servicio para registrar el retiro
+            // registerWithdrawalByAdmin(userId, numeroCartola, withdrawalData, adminId)
+            // withdrawalData: { montoRetiro, notaAdmin }
+            // adminId: currentUser.uid
+            // @ts-ignore
+            await import('../../services/savingsService').then(({ registerWithdrawalByAdmin }) =>
+                registerWithdrawalByAdmin(clienteId, numeroCartola, {
+                    montoRetiro: withdrawalAmount,
+                    notaAdmin: withdrawalNotes || 'Retiro procesado por administrador.'
+                }, currentUser.uid)
+            );
+            toast.success('Retiro registrado y procesado.', { id: toastId });
+            setIsWithdrawalModalOpen(false);
+            setWithdrawalAmount(0);
+            setWithdrawalNotes('');
+            fetchData();
+        } catch (err) {
+            toast.error('Error al registrar el retiro.', { id: toastId });
+            console.error(err);
+        } finally {
+            setIsSubmittingWithdrawal(false);
+        }
+    };
     const { clienteId, numeroCartola: numeroCartolaStr } = useParams<{ clienteId: string; numeroCartola: string }>();
     const { currentUser } = useAuth();
 
     const [plan, setPlan] = useState<ProgrammedSaving | null>(null);
     const [deposits, setDeposits] = useState<Deposit[]>([]);
+    const [withdrawals, setWithdrawals] = useState<any[]>([]);
     const [client, setClient] = useState<UserProfile | null>(null);
     const [loading, setLoading] = useState<boolean>(true);
     const [error, setError] = useState<string | null>(null);
@@ -49,6 +87,12 @@ const AdminProgrammedSavingDetailPage: React.FC = () => {
     const [manualDepositAmount, setManualDepositAmount] = useState<number>(0);
     const [manualDepositNotes, setManualDepositNotes] = useState<string>('');
     const [isSubmittingManual, setIsSubmittingManual] = useState(false);
+
+    // Estado para el modal de retiro solicitado
+    const [isWithdrawalModalOpen, setIsWithdrawalModalOpen] = useState(false);
+    const [withdrawalAmount, setWithdrawalAmount] = useState<number>(0);
+    const [withdrawalNotes, setWithdrawalNotes] = useState<string>('');
+    const [isSubmittingWithdrawal, setIsSubmittingWithdrawal] = useState(false);
 
     const numeroCartola = numeroCartolaStr ? parseInt(numeroCartolaStr, 10) : NaN;
 
@@ -62,15 +106,17 @@ const AdminProgrammedSavingDetailPage: React.FC = () => {
         setLoading(true);
         setError(null);
         try {
-            const [fetchedPlan, fetchedDeposits, fetchedClient] = await Promise.all([
+            const [fetchedPlan, fetchedDeposits, fetchedWithdrawals, fetchedClient] = await Promise.all([
                 getProgrammedSavingById(clienteId, numeroCartola),
                 getDepositsForSavingPlan(clienteId, numeroCartola),
+                import('../../services/savingsService').then(({ getWithdrawalsForSavingPlan }) => getWithdrawalsForSavingPlan(clienteId, numeroCartola)),
                 getUserProfile(clienteId)
             ]);
 
             if (fetchedPlan) {
                 setPlan(fetchedPlan);
                 setDeposits(fetchedDeposits.sort((a, b) => new Date(b.fechaDeposito).getTime() - new Date(a.fechaDeposito).getTime())); // Ordenar por fecha
+                setWithdrawals(fetchedWithdrawals.sort((a, b) => new Date(b.fechaSolicitud).getTime() - new Date(a.fechaSolicitud).getTime()));
                 setClient(fetchedClient);
             } else {
                 setError("Plan de ahorro no encontrado.");
@@ -223,13 +269,19 @@ const AdminProgrammedSavingDetailPage: React.FC = () => {
                 </div>
 
                 {/* Historial de Depósitos */}
-                <div className="bg-white p-6 rounded-lg shadow-md">
+                <div className="bg-white p-6 rounded-lg shadow-md mb-8">
                     <div className="flex justify-between items-center mb-4">
                         <h2 className="text-xl font-bold text-gray-800">Historial de Depósitos</h2>
-                        <button
-                            onClick={() => setIsModalOpen(true)}
-                            className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-4 rounded-md text-sm transition-colors duration-200"
-                        >+ Registrar Depósito Manual</button>
+                        <div className="flex gap-2">
+                            <button
+                                onClick={() => setIsModalOpen(true)}
+                                className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-4 rounded-md text-sm transition-colors duration-200"
+                            >+ Registrar Depósito Manual</button>
+                            <button
+                                onClick={() => setIsWithdrawalModalOpen(true)}
+                                className="bg-pink-600 hover:bg-pink-700 text-white font-semibold py-2 px-4 rounded-md text-sm transition-colors duration-200"
+                            >+ Registrar Retiro Solicitado</button>
+                        </div>
                     </div>
                     <div className="overflow-x-auto">
                         <table className="min-w-full divide-y divide-gray-200">
@@ -267,6 +319,34 @@ const AdminProgrammedSavingDetailPage: React.FC = () => {
                         {deposits.length === 0 && <p className="text-center text-gray-500 py-6">No hay depósitos registrados para este plan.</p>}
                     </div>
                 </div>
+
+                {/* Historial de Retiros */}
+                <div className="bg-white p-6 rounded-lg shadow-md">
+                    <h2 className="text-xl font-bold text-gray-800 mb-4">Historial de Retiros</h2>
+                    <div className="overflow-x-auto">
+                        <table className="min-w-full divide-y divide-gray-200">
+                            <thead className="bg-gray-50">
+                                <tr>
+                                    <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha Solicitud</th>
+                                    <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Monto</th>
+                                    <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
+                                    <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nota Admin</th>
+                                </tr>
+                            </thead>
+                            <tbody className="bg-white divide-y divide-gray-200 text-sm">
+                                {withdrawals.map(withdrawal => (
+                                    <tr key={withdrawal.withdrawalId}>
+                                        <td className="px-4 py-4 whitespace-nowrap">{formatDate(withdrawal.fechaSolicitud)}</td>
+                                        <td className="px-4 py-4 whitespace-nowrap font-medium">${withdrawal.montoRetiro.toFixed(2)}</td>
+                                        <td className="px-4 py-4 whitespace-nowrap">{withdrawal.estadoRetiro}</td>
+                                        <td className="px-4 py-4 text-gray-600">{withdrawal.notaAdmin || 'N/A'}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                        {withdrawals.length === 0 && <p className="text-center text-gray-500 py-6">No hay retiros registrados para este plan.</p>}
+                    </div>
+                </div>
             </div>
 
             {/* Modal para registrar depósito manual */}
@@ -302,6 +382,45 @@ const AdminProgrammedSavingDetailPage: React.FC = () => {
                             <div className="flex justify-end gap-3">
                                 <button type="button" onClick={() => setIsModalOpen(false)} disabled={isSubmittingManual} className="px-4 py-2 text-sm font-semibold text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 transition disabled:opacity-50">Cancelar</button>
                                 <button type="submit" disabled={isSubmittingManual} className="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 rounded-md hover:bg-indigo-700 transition disabled:opacity-50 disabled:cursor-wait">{isSubmittingManual ? 'Registrando...' : 'Registrar y Confirmar'}</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal para registrar retiro solicitado */}
+            {isWithdrawalModalOpen && (
+                <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4">
+                    <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
+                        <h3 className="text-lg font-bold text-gray-900 mb-4">Registrar Retiro Solicitado</h3>
+                        <form onSubmit={handleWithdrawalSubmit}>
+                            <div className="mb-4">
+                                <label htmlFor="withdrawalAmount" className="block text-sm font-medium text-gray-700">Monto del Retiro ($)</label>
+                                <input
+                                    type="number"
+                                    id="withdrawalAmount"
+                                    value={withdrawalAmount}
+                                    onChange={(e) => setWithdrawalAmount(Number(e.target.value))}
+                                    className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-pink-500 focus:border-pink-500"
+                                    required
+                                    min="0.01"
+                                    step="0.01"
+                                />
+                            </div>
+                            <div className="mb-6">
+                                <label htmlFor="withdrawalNotes" className="block text-sm font-medium text-gray-700">Nota del Administrador (Opcional)</label>
+                                <textarea
+                                    id="withdrawalNotes"
+                                    value={withdrawalNotes}
+                                    onChange={(e) => setWithdrawalNotes(e.target.value)}
+                                    rows={3}
+                                    className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-pink-500 focus:border-pink-500"
+                                    placeholder="Ej: Retiro procesado en ventanilla."
+                                />
+                            </div>
+                            <div className="flex justify-end gap-3">
+                                <button type="button" onClick={() => setIsWithdrawalModalOpen(false)} disabled={isSubmittingWithdrawal} className="px-4 py-2 text-sm font-semibold text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 transition disabled:opacity-50">Cancelar</button>
+                                <button type="submit" disabled={isSubmittingWithdrawal} className="px-4 py-2 text-sm font-semibold text-white bg-pink-600 rounded-md hover:bg-pink-700 transition disabled:opacity-50 disabled:cursor-wait">{isSubmittingWithdrawal ? 'Registrando...' : 'Registrar y Procesar'}</button>
                             </div>
                         </form>
                     </div>

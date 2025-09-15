@@ -82,6 +82,13 @@ export enum DepositStatus {
     RECHAZADO = "Rechazado",
 }
 
+export enum WithdrawalStatus {
+    SOLICITADO = "Solicitado",
+    PROCESADO = "Procesado",
+    RECHAZADO = "Rechazado",
+}
+
+
 export interface Deposit {
     depositId: string;
     fechaDeposito: Date; // timestamp
@@ -92,6 +99,17 @@ export interface Deposit {
     fechaVerificacion?: Date; // timestamp
     adminVerificadorId?: string;
     notaAdmin?: string;
+}
+
+export interface Withdrawal {
+    withdrawalId: string;
+    fechaSolicitud: Date;
+    fechaProcesado?: Date;
+    montoRetiro: number;
+    estadoRetiro: WithdrawalStatus;
+    notaCliente?: string;
+    notaAdmin?: string;
+    adminProcesadorId?: string;
 }
 
 export interface ProgrammedSaving {
@@ -109,6 +127,7 @@ export interface ProgrammedSaving {
     ultimaActualizacion: Date; // timestamp
     adminCreadorId: string;
     depositos?: Deposit[]; // This could be a subcollection
+    retiros?: Withdrawal[]; // This could be a subcollection
     advisorId?: string;
     advisorName?: string;
 }
