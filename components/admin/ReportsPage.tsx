@@ -50,6 +50,12 @@ export const ReportsPage: React.FC = () => {
                     title="Reporte de Morosidad"
                     description="Analizar préstamos y cuotas vencidas."
                 />
+                <ReportCard
+                    to="/portal/admin/reports/payment-activity"
+                    icon="fa-wallet"
+                    title="Actividad de Pagos"
+                    description="Ver reportes, aprobaciones y rechazos de pagos."
+                />
             </div>
         </div>
     );

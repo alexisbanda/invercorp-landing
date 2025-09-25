@@ -24,8 +24,10 @@ import { LoanManagementPage } from './components/admin/LoanManagementPage';
 import { LoanInstallmentsPage } from './components/admin/LoanInstallmentsPage.tsx';
 import { DashboardReports } from './components/admin/DashboardReports';
 import { PendingInstallmentsReportPage } from './components/admin/reports/PendingInstallmentsReportPage';
-import { LoanPortfolioReportPage } from './components/admin/reports/LoanPortfolioReportPage';
-import { DelinquencyReportPage } from './components/admin/reports/DelinquencyReportPage';
+// removed unused specific report components; replaced by new aggregated report pages
+import { PortfolioOverviewPage } from './components/admin/reports/PortfolioOverviewPage';
+import { DelinquencyAgingPage } from './components/admin/reports/DelinquencyAgingPage';
+import { PaymentActivityPage } from './components/admin/reports/PaymentActivityPage';
 import SavingsManagementPage from './components/admin/SavingsManagementPage';
 import AdminNewProgrammedSavingForm from './components/admin/AdminNewProgrammedSavingForm';
 import AdminProgrammedSavingDetailPage from './components/admin/AdminProgrammedSavingDetailPage';
@@ -75,8 +77,9 @@ function App() {
                     <Route path="/portal/admin/management/:loanId" element={<LoanInstallmentsPage />} />
                     <Route path="/portal/admin/reports/dashboard" element={<DashboardReports />} />
                     <Route path="/portal/admin/reports/pending-installments" element={<PendingInstallmentsReportPage />} />
-                    <Route path="/portal/admin/reports/loan-portfolio" element={<LoanPortfolioReportPage />} />
-                    <Route path="/portal/admin/reports/delinquency" element={<DelinquencyReportPage />} />
+                    <Route path="/portal/admin/reports/loan-portfolio" element={<PortfolioOverviewPage />} />
+                    <Route path="/portal/admin/reports/delinquency" element={<DelinquencyAgingPage />} />
+                    <Route path="/portal/admin/reports/payment-activity" element={<PaymentActivityPage />} />
                     <Route path="/portal/admin/pending-deposits" element={<PendingDepositsPage />} />
                     {/* Rutas para Ahorros */}
                     <Route path="/portal/admin/savings" element={<SavingsManagementPage />} />
