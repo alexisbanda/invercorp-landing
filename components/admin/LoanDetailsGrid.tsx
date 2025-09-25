@@ -10,8 +10,8 @@ interface LoanDetailsGridProps {
     title: string;
 }
 
-const formatDate = (date: Date): string => {
-    if (!(date instanceof Date) || isNaN(date.getTime())) {
+const formatDate = (date: Date | undefined | null): string => {
+    if (!date || !(date instanceof Date) || isNaN(date.getTime())) {
         return 'Fecha inválida';
     }
     return new Intl.DateTimeFormat('es-EC', {

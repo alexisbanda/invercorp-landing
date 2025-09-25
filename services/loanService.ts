@@ -215,7 +215,7 @@ const processLoanDocData = (docData: any, docId: string): Loan => {
             paymentReportDate: convertFirestoreTimestampToDate(inst.paymentReportDate),
             paymentDate: convertFirestoreTimestampToDate(inst.paymentDate), // Asegúrate de convertir también paymentDate
         })),
-        loanHistory: docData.statusHistory.map((entry: any) => ({
+        statusHistory: (docData.statusHistory || []).map((entry: any) => ({
             ...entry,
             date: convertFirestoreTimestampToDate(entry.date) // Convertir la fecha del historial de estado
         })),
@@ -283,7 +283,7 @@ export const getAllLoans = async (): Promise<Loan[]> => {
 export const reportPaymentForInstallment = async (
     loanId: string,
     installmentNumber: number,
-    paymentData: { receiptUrl?: string; notes?: string } // receiptUrl ahora es opcional
+    paymentData: { receiptUrl?: string; notes?: string; paymentReportNotes?: string } // aceptar paymentReportNotes también
 ): Promise<void> => {
     const loanRef = doc(db, 'loans', loanId);
     const loanSnap = await getDoc(loanRef);
@@ -319,8 +319,10 @@ export const reportPaymentForInstallment = async (
         adminNotes: '',
     };
 
-    if (paymentData.notes !== undefined) {
-        updatedInstallmentData.paymentReportNotes = paymentData.notes;
+    // Preferir paymentReportNotes (usado por la UI) si viene, sino usar notes
+    const note = paymentData.paymentReportNotes ?? paymentData.notes;
+    if (note !== undefined) {
+        updatedInstallmentData.paymentReportNotes = note;
     }
 
     if (paymentData.receiptUrl !== undefined) {
@@ -477,4 +479,156 @@ export const getPendingAdminInstallments = async (): Promise<any[]> => {
     }
 
     return pendingInstallments;
+};
+
+/**
+ * Agrega una nueva cuota a un préstamo, renumerando las cuotas existentes si es necesario.
+ */
+export const addInstallment = async (loanId: string, newInstallment: Installment): Promise<void> => {
+    const loanRef = doc(db, 'loans', loanId);
+    const loanSnap = await getDoc(loanRef);
+
+    if (!loanSnap.exists()) {
+        throw new Error(`No se encontró el préstamo con ID: ${loanId}`);
+    }
+
+    const loanDataFromFirestore = loanSnap.data();
+    if (!loanDataFromFirestore) {
+        throw new Error('Datos del préstamo vacíos.');
+    }
+
+    const installments: any[] = Array.isArray(loanDataFromFirestore.installments) ? [...loanDataFromFirestore.installments] : [];
+
+    // Si ya existe una cuota con el mismo número, desplazamos hacia adelante las cuotas iguales o mayores
+    for (const inst of installments) {
+        if (typeof inst.installmentNumber === 'number' && inst.installmentNumber >= newInstallment.installmentNumber) {
+            inst.installmentNumber = inst.installmentNumber + 1;
+        }
+    }
+
+    // Añadir la nueva cuota
+    installments.push(newInstallment);
+
+    // Ordenar por número de cuota
+    installments.sort((a, b) => a.installmentNumber - b.installmentNumber);
+
+    const updateData: any = {
+        installments,
+        installmentsTotal: installments.length,
+    };
+
+    // Añadimos una entrada al historial indicando la modificación
+    const statusUpdate: StatusChange = {
+        status: (loanDataFromFirestore.status as LoanStatus) || LoanStatus.DESEMBOLSADO,
+        date: new Date(),
+        notes: `Cuota ${newInstallment.installmentNumber} añadida (agregada manualmente).`,
+        updatedBy: auth.currentUser?.email || 'sistema',
+    };
+
+    updateData.statusHistory = arrayUnion(statusUpdate);
+
+    await updateDoc(loanRef, updateData);
+};
+
+/**
+ * Actualiza una cuota existente en un préstamo.
+ */
+export const updateInstallment = async (
+    loanId: string,
+    installmentNumber: number,
+    updates: Partial<Installment>
+): Promise<void> => {
+    const loanRef = doc(db, 'loans', loanId);
+    const loanSnap = await getDoc(loanRef);
+
+    if (!loanSnap.exists()) {
+        throw new Error(`No se encontró el préstamo con ID: ${loanId}`);
+    }
+
+    const loanDataFromFirestore = loanSnap.data();
+    if (!loanDataFromFirestore) {
+        throw new Error('Datos del préstamo vacíos.');
+    }
+
+    const installments: any[] = Array.isArray(loanDataFromFirestore.installments) ? [...loanDataFromFirestore.installments] : [];
+
+    const idx = installments.findIndex((inst) => inst.installmentNumber === installmentNumber);
+    if (idx === -1) {
+        throw new Error(`No se encontró la cuota número ${installmentNumber} en el préstamo ${loanId}`);
+    }
+
+    // Merge de la cuota existente con los cambios
+    const updatedInstallment = {
+        ...installments[idx],
+        ...updates,
+    };
+
+    installments[idx] = updatedInstallment;
+
+    // Si el número de cuota fue modificado, renumerar y ordenar
+    if (typeof updates.installmentNumber === 'number') {
+        // Evitar duplicados: reasignar y ordenar
+        installments.sort((a, b) => a.installmentNumber - b.installmentNumber);
+    }
+
+    const updateData: any = {
+        installments,
+    };
+
+    const statusUpdate: StatusChange = {
+        status: (loanDataFromFirestore.status as LoanStatus) || LoanStatus.DESEMBOLSADO,
+        date: new Date(),
+        notes: `Cuota ${installmentNumber} actualizada.`,
+        updatedBy: auth.currentUser?.email || 'sistema',
+    };
+    updateData.statusHistory = arrayUnion(statusUpdate);
+
+    await updateDoc(loanRef, updateData);
+};
+
+/**
+ * Elimina una cuota de un préstamo y renumera las cuotas siguientes.
+ */
+export const removeInstallment = async (loanId: string, installmentNumber: number): Promise<void> => {
+    const loanRef = doc(db, 'loans', loanId);
+    const loanSnap = await getDoc(loanRef);
+
+    if (!loanSnap.exists()) {
+        throw new Error(`No se encontró el préstamo con ID: ${loanId}`);
+    }
+
+    const loanDataFromFirestore = loanSnap.data();
+    if (!loanDataFromFirestore) {
+        throw new Error('Datos del préstamo vacíos.');
+    }
+
+    const installments: any[] = Array.isArray(loanDataFromFirestore.installments) ? [...loanDataFromFirestore.installments] : [];
+
+    const idx = installments.findIndex((inst) => inst.installmentNumber === installmentNumber);
+    if (idx === -1) {
+        throw new Error(`No se encontró la cuota número ${installmentNumber} en el préstamo ${loanId}`);
+    }
+
+    // Remover la cuota
+    installments.splice(idx, 1);
+
+    // Renumerar las cuotas posteriores
+    for (let i = 0; i < installments.length; i++) {
+        installments[i].installmentNumber = i + 1;
+    }
+
+    const updateData: any = {
+        installments,
+        installmentsTotal: installments.length,
+    };
+
+    const statusUpdate: StatusChange = {
+        status: (loanDataFromFirestore.status as LoanStatus) || LoanStatus.DESEMBOLSADO,
+        date: new Date(),
+        notes: `Cuota ${installmentNumber} eliminada.`,
+        updatedBy: auth.currentUser?.email || 'sistema',
+    };
+    updateData.statusHistory = arrayUnion(statusUpdate);
+
+    await updateDoc(loanRef, updateData);
 };

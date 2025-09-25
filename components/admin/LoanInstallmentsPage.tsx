@@ -5,18 +5,11 @@ import { useParams, Link } from 'react-router-dom';
 import toast, { Toaster } from 'react-hot-toast';
 // Importamos las funciones correctas del servicio
 import { getLoanById, approvePayment, rejectPayment, reportPaymentForInstallment } from '@/services/loanService';
+import { addInstallment, updateInstallment, removeInstallment } from '@/services/loanService';
 import { getUserProfile } from '../../services/userService';
 import { Loan, Installment, UserProfile } from '@/types';
-import { Timestamp } from 'firebase/firestore'; // Es una buena práctica importar el tipo
 
-// --- Definición de tipo para el historial de estados ---
-// Para mayor precisión, el tipo de la fecha que viene de Firestore es Timestamp.
-interface StatusChange {
-    status: string;
-    date: Timestamp;
-    notes?: string;
-    updatedBy?: string;
-}
+// (Se usa el tipo `StatusChange` definido en `types.ts`; no hace falta redeclarar aquí)
 
 // --- Modal para reportar pago (inspirado en DashboardPage) ---
 const ReportPaymentModal: React.FC<{
@@ -114,6 +107,62 @@ const RejectionModal: React.FC<{
     );
 };
 
+// --- Componente para agregar/editar una cuota (inserción local) ---
+const AddEditInstallmentForm: React.FC<{
+    initial?: Partial<Installment>;
+    onCancel: () => void;
+    onSubmit: (data: Partial<Installment>) => void;
+}> = ({ initial, onCancel, onSubmit }) => {
+    const [amount, setAmount] = useState<number>(initial?.amount || 0);
+    const [dueDate, setDueDate] = useState<string>(() => {
+        const d = initial?.dueDate ? (initial.dueDate instanceof Date ? initial.dueDate : new Date(initial.dueDate as any)) : new Date();
+        return d.toISOString().slice(0, 10);
+    });
+    const [installmentNumber, setInstallmentNumber] = useState<number>(initial?.installmentNumber || 0);
+    const [status, setStatus] = useState<string>(initial?.status || 'POR VENCER');
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        onSubmit({
+            installmentNumber,
+            amount,
+            dueDate: new Date(dueDate),
+            status: status as any,
+        });
+    };
+
+    return (
+        <form onSubmit={handleSubmit}>
+            <div className="mb-3">
+                <label className="block text-sm font-medium mb-1">Número de cuota</label>
+                <input type="number" value={installmentNumber} onChange={(e) => setInstallmentNumber(Number(e.target.value))} className="w-full p-2 border rounded" />
+            </div>
+            <div className="mb-3">
+                <label className="block text-sm font-medium mb-1">Monto</label>
+                <input type="number" step="0.01" value={amount} onChange={(e) => setAmount(Number(e.target.value))} className="w-full p-2 border rounded" />
+            </div>
+            <div className="mb-3">
+                <label className="block text-sm font-medium mb-1">Fecha de vencimiento</label>
+                <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="w-full p-2 border rounded" />
+            </div>
+            <div className="mb-3">
+                <label className="block text-sm font-medium mb-1">Estado</label>
+                <select value={status} onChange={(e) => setStatus(e.target.value)} className="w-full p-2 border rounded">
+                    <option value="POR VENCER">POR VENCER</option>
+                    <option value="EN VERIFICACIÓN">EN VERIFICACIÓN</option>
+                    <option value="VENCIDO">VENCIDO</option>
+                    <option value="PAGADO">PAGADO</option>
+                    <option value="EN ESPERA">EN ESPERA</option>
+                </select>
+            </div>
+            <div className="flex justify-end gap-3">
+                <button type="button" onClick={onCancel} className="px-4 py-2 bg-gray-200 rounded">Cancelar</button>
+                <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded">Guardar</button>
+            </div>
+        </form>
+    );
+};
+
 // --- Componente de utilidad para formatear fechas (sin cambios) ---
 const formatDate = (date: Date | undefined | null): string => {
     if (!date || !(date instanceof Date) || isNaN(date.getTime())) return 'N/A';
@@ -152,6 +201,12 @@ export const LoanInstallmentsPage = () => {
     const [isReportModalOpen, setIsReportModalOpen] = useState(false);
     const [installmentToReport, setInstallmentToReport] = useState<Installment | null>(null);
     const [isSubmittingReport, setIsSubmittingReport] = useState(false);
+
+    // Estados para agregar/editar/eliminar cuotas
+    const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [installmentToEdit, setInstallmentToEdit] = useState<Installment | null>(null);
+    const [isDeleting, setIsDeleting] = useState(false);
 
 
     const fetchLoanDetails = useCallback(async () => {
@@ -242,6 +297,67 @@ export const LoanInstallmentsPage = () => {
         }
     };
 
+    // --- Agregar cuota ---
+    const handleAddInstallment = async (inst: Partial<Installment>) => {
+        if (!loanId) return;
+        const toastId = toast.loading('Agregando cuota...');
+        try {
+            // Construir una cuota completa básica
+            const newInst: Installment = {
+                installmentNumber: inst.installmentNumber || (loan?.installments.length || 0) + 1,
+                dueDate: inst.dueDate || new Date(),
+                amount: inst.amount || 0,
+                status: inst.status || 'POR VENCER',
+            };
+            await addInstallment(loanId, newInst);
+            toast.success('Cuota agregada.', { id: toastId });
+            fetchLoanDetails();
+            setIsAddModalOpen(false);
+        } catch (err) {
+            toast.error('Error al agregar la cuota.', { id: toastId });
+            console.error(err);
+        }
+    };
+
+    // --- Editar cuota ---
+    const handleOpenEditModal = (inst: Installment) => {
+        setInstallmentToEdit(inst);
+        setIsEditModalOpen(true);
+    };
+
+    const handleEditSubmit = async (updates: Partial<Installment>) => {
+        if (!loanId || !installmentToEdit) return;
+        const toastId = toast.loading('Actualizando cuota...');
+        try {
+            await updateInstallment(loanId, installmentToEdit.installmentNumber, updates);
+            toast.success('Cuota actualizada.', { id: toastId });
+            fetchLoanDetails();
+            setIsEditModalOpen(false);
+            setInstallmentToEdit(null);
+        } catch (err) {
+            toast.error('Error al actualizar la cuota.', { id: toastId });
+            console.error(err);
+        }
+    };
+
+    // --- Eliminar cuota ---
+    const handleDeleteInstallment = async (installmentNumber: number) => {
+        if (!loanId) return;
+        if (!window.confirm(`¿Eliminar la cuota #${installmentNumber}? Esta acción renumerará las cuotas restantes.`)) return;
+        setIsDeleting(true);
+        const toastId = toast.loading('Eliminando cuota...');
+        try {
+            await removeInstallment(loanId, installmentNumber);
+            toast.success('Cuota eliminada.', { id: toastId });
+            fetchLoanDetails();
+        } catch (err) {
+            toast.error('Error al eliminar la cuota.', { id: toastId });
+            console.error(err);
+        } finally {
+            setIsDeleting(false);
+        }
+    };
+
 
     if (isLoading) return <div className="p-6 text-center">Cargando detalles del préstamo...</div>;
     if (error) return <div className="p-6 text-center text-red-500">{error}</div>;
@@ -287,7 +403,12 @@ export const LoanInstallmentsPage = () => {
                     </div>
                 </div>
 
-                <h2 className="text-xl font-bold mb-4">Cuotas</h2>
+                <div className="flex items-center justify-between">
+                    <h2 className="text-xl font-bold mb-4">Cuotas</h2>
+                    <div>
+                        <button onClick={() => setIsAddModalOpen(true)} className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-3 rounded-md text-sm">+ Agregar Cuota</button>
+                    </div>
+                </div>
                 <div className="overflow-x-auto bg-white rounded-lg shadow">
                     <table className="min-w-full divide-y divide-gray-200">
                         <thead className="bg-gray-100">
@@ -298,7 +419,7 @@ export const LoanInstallmentsPage = () => {
                         </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-200">
-                        {loan.installments.map((inst) => (
+            {loan.installments.map((inst) => (
                             <tr key={inst.installmentNumber} className="hover:bg-gray-50">
                                 <td className="py-4 px-4 text-sm font-medium text-gray-900">{inst.installmentNumber}</td>
                                 <td className="py-4 px-4 text-sm text-gray-700">${inst.amount.toFixed(2)}</td>
@@ -322,7 +443,7 @@ export const LoanInstallmentsPage = () => {
                                                 <button onClick={() => handleOpenRejectModal(inst)} className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 text-sm">Rechazar</button>
                                             </>
                                         )}
-                                        {(inst.status === 'POR VENCER' || inst.status === 'VENCIDO' || inst.status === 'PENDIENTE') && (
+                                        {(inst.status === 'POR VENCER' || inst.status === 'VENCIDO' || inst.status === 'EN ESPERA') && (
                                             <button
                                                 onClick={() => handleOpenReportModal(inst)}
                                                 className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm"
@@ -330,6 +451,9 @@ export const LoanInstallmentsPage = () => {
                                                 Reportar Pago
                                             </button>
                                         )}
+                                        {/* Admin actions: edit/delete */}
+                                        <button onClick={() => handleOpenEditModal(inst)} className="px-3 py-1 bg-yellow-500 text-white rounded hover:bg-yellow-600 text-sm">Editar</button>
+                                        <button onClick={() => handleDeleteInstallment(inst.installmentNumber)} disabled={isDeleting} className="px-3 py-1 bg-gray-500 text-white rounded hover:bg-gray-600 text-sm">Eliminar</button>
                                     </div>
                                 </td>
                             </tr>
@@ -337,6 +461,25 @@ export const LoanInstallmentsPage = () => {
                         </tbody>
                     </table>
                 </div>
+
+                {/* Add / Edit Modals (simple inline forms) */}
+                {isAddModalOpen && (
+                    <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4">
+                        <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
+                            <h3 className="text-lg font-bold mb-4">Agregar Cuota</h3>
+                            <AddEditInstallmentForm onCancel={() => setIsAddModalOpen(false)} onSubmit={handleAddInstallment} />
+                        </div>
+                    </div>
+                )}
+
+                {isEditModalOpen && installmentToEdit && (
+                    <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4">
+                        <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
+                            <h3 className="text-lg font-bold mb-4">Editar Cuota #{installmentToEdit.installmentNumber}</h3>
+                            <AddEditInstallmentForm initial={installmentToEdit} onCancel={() => setIsEditModalOpen(false)} onSubmit={handleEditSubmit} />
+                        </div>
+                    </div>
+                )}
 
                 {/* --- SECCIÓN DE HISTORIAL DE ESTADOS --- */}
                 {loan.statusHistory && loan.statusHistory.length > 0 && (
@@ -346,7 +489,14 @@ export const LoanInstallmentsPage = () => {
                             <ul className="space-y-4">
                                 {loan.statusHistory
                                     .slice()
-                                    .sort((a, b) => b.date.toDate().getTime() - a.date.toDate().getTime())
+                                    .slice()
+                                    .sort((a, b) => {
+                                        const aDate = (a.date && typeof (a.date as any).toDate === 'function') ? (a.date as any).toDate() : (a.date as Date | undefined | null);
+                                        const bDate = (b.date && typeof (b.date as any).toDate === 'function') ? (b.date as any).toDate() : (b.date as Date | undefined | null);
+                                        const at = aDate ? new Date(aDate).getTime() : 0;
+                                        const bt = bDate ? new Date(bDate).getTime() : 0;
+                                        return bt - at;
+                                    })
                                     .map((historyItem, index) => (
                                         <li key={index} className="flex items-start gap-4 pb-4 border-b border-gray-200 last:border-b-0">
                                             <div className="flex-shrink-0 w-10 h-10 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center font-bold text-lg">
@@ -358,7 +508,7 @@ export const LoanInstallmentsPage = () => {
                                                 </p>
                                                 <p className="text-sm text-gray-500">
                                                     {/* CORRECCIÓN APLICADA AQUÍ */}
-                                                    {safeFormatDate(historyItem.date)}
+                                                    {safeFormatDate((historyItem.date && typeof (historyItem.date as any).toDate === 'function') ? (historyItem.date as any).toDate() : historyItem.date)}
                                                 </p>
                                                 {historyItem.notes && (
                                                     <p className="text-sm text-gray-600 mt-1 bg-gray-50 p-2 rounded-md">

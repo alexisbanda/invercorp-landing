@@ -13,11 +13,12 @@ export interface UserProfile {
     role: UserRole;
     cedula: string;
     numeroCartola?: string;
+    phone?: string;
 }
 
 export interface Installment {
     installmentNumber: number;
-    dueDate: Date;
+    dueDate: Date | undefined | null;
     amount: number;
     status: 'PAGADO' | 'POR VENCER' | 'VENCIDO' | 'EN VERIFICACIÓN' | 'EN ESPERA';
     paymentDate?: Date;
@@ -42,7 +43,7 @@ export enum LoanStatus {
 
 export interface StatusChange {
     status: LoanStatus;
-    date: Date;
+    date: Date | undefined | null;
     notes?: string;
     updatedBy: 'sistema' | string; // 'sistema' o UID de un admin
 }
@@ -54,8 +55,8 @@ export interface Loan {
     userEmail: string;
     loanAmount: number;
     currency: string;
-    applicationDate: Date;
-    disbursementDate?: Date; // Puede que no exista si aún no se desembolsa
+    applicationDate: Date | undefined | null;
+    disbursementDate?: Date | undefined | null; // Puede que no exista si aún no se desembolsa
     status: LoanStatus;
     statusHistory: StatusChange[];
     // CORRECCIÓN: Se usa un array para ser consistente con el importador y la creación de préstamos.
@@ -63,6 +64,10 @@ export interface Loan {
     userCedula: string;
     installmentsTotal: number;
     installmentAmount: number;
+    // Campos opcionales usados por createLoan y el servicio
+    termValue?: number;
+    paymentFrequency?: 'Mensual' | 'Quincenal' | 'Semanal';
+    interestRate?: number;
     advisorId?: string;
     advisorName?: string;
 }
