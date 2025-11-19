@@ -1,6 +1,6 @@
 // src/components/admin/ClientManagementPage.tsx
 import React, { useEffect, useState } from 'react';
-import { getAllClients, Client } from '../../services/clientService';
+import { getAllClients, Client, deleteClient } from '../../services/clientService';
 import { getAllLoans } from '../../services/loanService';
 import { getAllProgrammedSavings } from '../../services/savingsService';
 import EditClientModal from './EditClientModal';
@@ -12,8 +12,10 @@ const ClientManagementPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
   const [clientData, setClientData] = useState<{[key: string]: {loans: Loan[], savings: ProgrammedSaving[]}}>({});
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [clientToDelete, setClientToDelete] = useState<Client | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const fetchAllData = async () => {
     try {
@@ -49,16 +51,51 @@ const ClientManagementPage: React.FC = () => {
 
   const handleEditClick = (client: Client) => {
     setSelectedClient(client);
-    setIsModalOpen(true);
   };
 
   const handleCloseModal = () => {
-    setIsModalOpen(false);
     setSelectedClient(null);
   };
 
   const handleClientUpdated = () => {
     fetchAllData(); // Re-fetch all data to show updated info
+  };
+
+  const handleDeleteClick = (client: Client) => {
+    setClientToDelete(client);
+    setIsDeleteModalOpen(true);
+  };
+
+  const handleCancelDelete = () => {
+    setIsDeleteModalOpen(false);
+    setClientToDelete(null);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!clientToDelete) return;
+
+    // Validar si el cliente tiene préstamos o ahorros activos
+    const hasLoans = clientData[clientToDelete.id]?.loans.length > 0;
+    const hasSavings = clientData[clientToDelete.id]?.savings.length > 0;
+
+    if (hasLoans || hasSavings) {
+      alert('No se puede eliminar el cliente porque tiene préstamos o ahorros registrados. Por favor, elimine primero los servicios asociados.');
+      return;
+    }
+
+    try {
+      setIsDeleting(true);
+      await deleteClient(clientToDelete.id);
+      await fetchAllData(); // Recargar la lista
+      setIsDeleteModalOpen(false);
+      setClientToDelete(null);
+      alert('Cliente eliminado exitosamente');
+    } catch (error) {
+      console.error('Error al eliminar cliente:', error);
+      alert('Error al eliminar el cliente. Por favor, intente nuevamente.');
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   const filteredClients = clients.filter(client =>
@@ -112,9 +149,10 @@ const ClientManagementPage: React.FC = () => {
                     <Link to={`/portal/admin/management/${clientData[client.id]?.loans[0].id}`} className="text-blue-600 hover:text-blue-900 mr-4">Ver Préstamo</Link>
                   )}
                   {clientData[client.id]?.savings.length > 0 && (
-                     <Link to={`/portal/admin/savings/${client.id}/${clientData[client.id]?.savings[0].numeroCartola}`} className="text-green-600 hover:text-green-900">Ver Ahorro</Link>
+                     <Link to={`/portal/admin/savings/${client.id}/${clientData[client.id]?.savings[0].numeroCartola}`} className="text-green-600 hover:text-green-900 mr-4">Ver Ahorro</Link>
                   )}
-                  <button onClick={() => handleEditClick(client)} className="text-yellow-600 hover:text-yellow-900 ml-4">Editar</button>
+                  <button onClick={() => handleEditClick(client)} className="text-yellow-600 hover:text-yellow-900 mr-4">Editar</button>
+                  <button onClick={() => handleDeleteClick(client)} className="text-red-600 hover:text-red-900">Eliminar</button>
                 </td>
               </tr>
             ))}
@@ -126,6 +164,58 @@ const ClientManagementPage: React.FC = () => {
         onClose={handleCloseModal}
         onClientUpdated={handleClientUpdated}
       />
+
+      {/* Modal de confirmación de eliminación */}
+      {isDeleteModalOpen && clientToDelete && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h2 className="text-2xl font-bold mb-4 text-red-600">Confirmar Eliminación</h2>
+            <p className="mb-4">
+              ¿Está seguro que desea eliminar al cliente <strong>{clientToDelete.name}</strong>?
+            </p>
+            <p className="mb-2 text-sm text-gray-600">
+              <strong>Cédula:</strong> {clientToDelete.cedula}
+            </p>
+            <p className="mb-4 text-sm text-gray-600">
+              <strong>Email:</strong> {clientToDelete.email}
+            </p>
+            
+            {(clientData[clientToDelete.id]?.loans.length > 0 || clientData[clientToDelete.id]?.savings.length > 0) && (
+              <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded">
+                <p className="text-red-700 font-semibold">⚠️ Este cliente tiene servicios activos:</p>
+                <ul className="list-disc list-inside text-red-600 text-sm mt-2">
+                  {clientData[clientToDelete.id]?.loans.length > 0 && (
+                    <li>{clientData[clientToDelete.id].loans.length} préstamo(s)</li>
+                  )}
+                  {clientData[clientToDelete.id]?.savings.length > 0 && (
+                    <li>{clientData[clientToDelete.id].savings.length} ahorro(s)</li>
+                  )}
+                </ul>
+                <p className="text-red-600 text-sm mt-2">
+                  No se puede eliminar hasta que se eliminen todos los servicios asociados.
+                </p>
+              </div>
+            )}
+            
+            <div className="flex justify-end space-x-4">
+              <button
+                onClick={handleCancelDelete}
+                className="px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400"
+                disabled={isDeleting}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleConfirmDelete}
+                className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                disabled={isDeleting || clientData[clientToDelete.id]?.loans.length > 0 || clientData[clientToDelete.id]?.savings.length > 0}
+              >
+                {isDeleting ? 'Eliminando...' : 'Eliminar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

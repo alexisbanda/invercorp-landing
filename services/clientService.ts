@@ -1,6 +1,6 @@
 // src/services/clientService.ts
 import { db } from '../firebase-config';
-import { doc, setDoc, serverTimestamp, collection, getDocs, query, where, updateDoc } from 'firebase/firestore';
+import { doc, setDoc, serverTimestamp, collection, getDocs, query, where, updateDoc, deleteDoc } from 'firebase/firestore';
 
 
 // Define la interfaz para los datos del nuevo cliente
@@ -99,4 +99,16 @@ export const getAllClients = async (): Promise<Client[]> => {
 export const updateClient = async (clientId: string, data: Partial<Client>): Promise<void> => {
     const clientDocRef = doc(db, 'users', clientId);
     await updateDoc(clientDocRef, data);
+};
+
+/**
+ * Elimina un cliente de Firestore.
+ * IMPORTANTE: Esta función solo elimina el documento del cliente en Firestore.
+ * No elimina el usuario de Firebase Authentication por razones de seguridad.
+ * 
+ * @param clientId El ID del cliente a eliminar
+ */
+export const deleteClient = async (clientId: string): Promise<void> => {
+    const clientDocRef = doc(db, 'users', clientId);
+    await deleteDoc(clientDocRef);
 };
