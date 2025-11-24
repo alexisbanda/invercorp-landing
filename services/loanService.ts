@@ -283,7 +283,7 @@ export const getAllLoans = async (): Promise<Loan[]> => {
 export const reportPaymentForInstallment = async (
     loanId: string,
     installmentNumber: number,
-    paymentData: { receiptUrl?: string; notes?: string; paymentReportNotes?: string } // aceptar paymentReportNotes también
+    paymentData: { receiptUrl?: string; notes?: string; paymentReportNotes?: string; paymentDate?: Date } // aceptar paymentReportNotes y paymentDate
 ): Promise<void> => {
     const loanRef = doc(db, 'loans', loanId);
     const loanSnap = await getDoc(loanRef);
@@ -308,7 +308,7 @@ export const reportPaymentForInstallment = async (
     if (installmentIndex === -1) {
         throw new Error(`No se encontró la cuota número ${installmentNumber} en el préstamo ${loanId}`);
     }
-    
+
     // Clonar el array de cuotas para no mutar el estado directamente
     const updatedInstallments = [...loan.installments];
 
@@ -318,6 +318,10 @@ export const reportPaymentForInstallment = async (
         paymentReportDate: new Date(),
         adminNotes: '',
     };
+
+    if (paymentData.paymentDate) {
+        updatedInstallmentData.paymentDate = paymentData.paymentDate;
+    }
 
     // Preferir paymentReportNotes (usado por la UI) si viene, sino usar notes
     const note = paymentData.paymentReportNotes ?? paymentData.notes;
@@ -369,16 +373,20 @@ export const approvePayment = async (loanId: string, installmentNumber: number):
     }
 
     const updatedInstallments = [...loan.installments];
+    const existingPaymentDate = loan.installments[installmentIndex].paymentDate;
+    // Si ya existe una fecha de pago (ej. reportada manualmente), la usamos. Si es un Timestamp, la convertimos.
+    const finalPaymentDate = convertFirestoreTimestampToDate(existingPaymentDate) || new Date();
+
     updatedInstallments[installmentIndex] = {
         ...updatedInstallments[installmentIndex],
         status: 'PAGADO',
-        paymentDate: new Date(), // Guardar como Date, Firestore lo convertirá a Timestamp
+        paymentDate: finalPaymentDate, // Usar la fecha preservada o la actual
         adminNotes: `Pago aprobado por ${auth.currentUser?.email || 'admin'}.`,
     };
 
     // Verificar si todas las cuotas están pagadas para completar el préstamo
     const allPaid = updatedInstallments.every(inst => inst.status === 'PAGADO');
-    
+
     const updateData: { installments: Installment[], status?: LoanStatus, statusHistory?: any } = {
         installments: updatedInstallments,
     };

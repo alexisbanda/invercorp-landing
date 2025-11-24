@@ -15,15 +15,17 @@ import { Loan, Installment, UserProfile } from '@/types';
 const ReportPaymentModal: React.FC<{
     isOpen: boolean;
     onClose: () => void;
-    onSubmit: (notes: string) => void;
+    onSubmit: (notes: string, date: Date) => void;
     installmentNumber: number | null;
     isSubmitting: boolean;
 }> = ({ isOpen, onClose, onSubmit, installmentNumber, isSubmitting }) => {
     const [notes, setNotes] = useState('');
+    const [paymentDate, setPaymentDate] = useState('');
 
     useEffect(() => {
         if (isOpen) {
             setNotes('');
+            setPaymentDate(new Date().toISOString().split('T')[0]);
         }
     }, [isOpen]);
 
@@ -31,7 +33,10 @@ const ReportPaymentModal: React.FC<{
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        onSubmit(notes);
+        // Crear fecha local a partir del input
+        const [year, month, day] = paymentDate.split('-').map(Number);
+        const selectedDate = new Date(year, month - 1, day, 12, 0, 0);
+        onSubmit(notes, selectedDate);
     };
 
     return (
@@ -39,6 +44,19 @@ const ReportPaymentModal: React.FC<{
             <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md transform transition-all duration-300 scale-100">
                 <h3 className="text-lg font-bold text-gray-900 mb-4">Reportar Pago de Cuota #{installmentNumber}</h3>
                 <form onSubmit={handleSubmit}>
+                    <div className="mb-4">
+                        <label htmlFor="paymentDate" className="block text-sm font-medium text-gray-700 mb-1">
+                            Fecha del Pago
+                        </label>
+                        <input
+                            type="date"
+                            id="paymentDate"
+                            value={paymentDate}
+                            onChange={(e) => setPaymentDate(e.target.value)}
+                            className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+                            required
+                        />
+                    </div>
                     <div className="mb-4">
                         <label htmlFor="paymentNotes" className="block text-sm font-medium text-gray-700 mb-1">
                             Comentario (Opcional)
@@ -194,7 +212,7 @@ export const LoanInstallmentsPage = () => {
     const [client, setClient] = useState<UserProfile | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    
+
     // Estados para los modales
     const [isRejectionModalOpen, setIsRejectionModalOpen] = useState(false);
     const [installmentToReject, setInstallmentToReject] = useState<Installment | null>(null);
@@ -276,14 +294,14 @@ export const LoanInstallmentsPage = () => {
         setIsReportModalOpen(true);
     };
 
-    const handleReportSubmit = async (notes: string) => {
+    const handleReportSubmit = async (notes: string, date: Date) => {
         if (!loanId || !installmentToReport) return;
 
         setIsSubmittingReport(true);
         const toastId = toast.loading('Reportando pago...');
 
         try {
-            await reportPaymentForInstallment(loanId, installmentToReport.installmentNumber, { paymentReportNotes: notes });
+            await reportPaymentForInstallment(loanId, installmentToReport.installmentNumber, { paymentReportNotes: notes, paymentDate: date });
             toast.success('Pago reportado con éxito.', { id: toastId });
             fetchLoanDetails(); // Recargar datos para ver el cambio de estado
         } catch (err) {
@@ -412,52 +430,52 @@ export const LoanInstallmentsPage = () => {
                 <div className="overflow-x-auto bg-white rounded-lg shadow">
                     <table className="min-w-full divide-y divide-gray-200">
                         <thead className="bg-gray-100">
-                        <tr>
-                            {['#', 'Monto', 'Vencimiento', 'Estado', 'Info de Pago Reportado', 'Acciones'].map(header => (
-                                <th key={header} className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{header}</th>
-                            ))}
-                        </tr>
+                            <tr>
+                                {['#', 'Monto', 'Vencimiento', 'Estado', 'Info de Pago Reportado', 'Acciones'].map(header => (
+                                    <th key={header} className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{header}</th>
+                                ))}
+                            </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-200">
-            {loan.installments.map((inst) => (
-                            <tr key={inst.installmentNumber} className="hover:bg-gray-50">
-                                <td className="py-4 px-4 text-sm font-medium text-gray-900">{inst.installmentNumber}</td>
-                                <td className="py-4 px-4 text-sm text-gray-700">${inst.amount.toFixed(2)}</td>
-                                {/* CORRECCIÓN APLICADA AQUÍ */}
-                                <td className="py-4 px-4 text-sm text-gray-500">{safeFormatDate(inst.dueDate)}</td>
-                                <td className="py-4 px-4 text-center"><StatusBadge status={inst.status} /></td>
-                                <td className="py-4 px-4 text-sm text-gray-600">
-                                    {inst.status === 'EN VERIFICACIÓN' && (
-                                        <div>
-                                            {/* CORRECCIÓN APLICADA AQUÍ */}
-                                            <p><strong>Fecha Reporte:</strong> {safeFormatDate(inst.paymentReportDate)}</p>
-                                            <p><strong>Notas Cliente:</strong> {inst.paymentReportNotes || 'N/A'}</p>
-                                        </div>
-                                    )}
-                                </td>
-                                <td className="py-4 px-4 text-center">
-                                    <div className="flex gap-2 justify-center">
+                            {loan.installments.map((inst) => (
+                                <tr key={inst.installmentNumber} className="hover:bg-gray-50">
+                                    <td className="py-4 px-4 text-sm font-medium text-gray-900">{inst.installmentNumber}</td>
+                                    <td className="py-4 px-4 text-sm text-gray-700">${inst.amount.toFixed(2)}</td>
+                                    {/* CORRECCIÓN APLICADA AQUÍ */}
+                                    <td className="py-4 px-4 text-sm text-gray-500">{safeFormatDate(inst.dueDate)}</td>
+                                    <td className="py-4 px-4 text-center"><StatusBadge status={inst.status} /></td>
+                                    <td className="py-4 px-4 text-sm text-gray-600">
                                         {inst.status === 'EN VERIFICACIÓN' && (
-                                            <>
-                                                <button onClick={() => handleApprove(inst.installmentNumber)} className="px-3 py-1 bg-green-500 text-white rounded hover:bg-green-600 text-sm">Aprobar</button>
-                                                <button onClick={() => handleOpenRejectModal(inst)} className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 text-sm">Rechazar</button>
-                                            </>
+                                            <div>
+                                                {/* CORRECCIÓN APLICADA AQUÍ */}
+                                                <p><strong>Fecha Reporte:</strong> {safeFormatDate(inst.paymentReportDate)}</p>
+                                                <p><strong>Notas Cliente:</strong> {inst.paymentReportNotes || 'N/A'}</p>
+                                            </div>
                                         )}
-                                        {(inst.status === 'POR VENCER' || inst.status === 'VENCIDO' || inst.status === 'EN ESPERA') && (
-                                            <button
-                                                onClick={() => handleOpenReportModal(inst)}
-                                                className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm"
-                                            >
-                                                Reportar Pago
-                                            </button>
-                                        )}
-                                        {/* Admin actions: edit/delete */}
-                                        <button onClick={() => handleOpenEditModal(inst)} className="px-3 py-1 bg-yellow-500 text-white rounded hover:bg-yellow-600 text-sm">Editar</button>
-                                        <button onClick={() => handleDeleteInstallment(inst.installmentNumber)} disabled={isDeleting} className="px-3 py-1 bg-gray-500 text-white rounded hover:bg-gray-600 text-sm">Eliminar</button>
-                                    </div>
-                                </td>
-                            </tr>
-                        ))}
+                                    </td>
+                                    <td className="py-4 px-4 text-center">
+                                        <div className="flex gap-2 justify-center">
+                                            {inst.status === 'EN VERIFICACIÓN' && (
+                                                <>
+                                                    <button onClick={() => handleApprove(inst.installmentNumber)} className="px-3 py-1 bg-green-500 text-white rounded hover:bg-green-600 text-sm">Aprobar</button>
+                                                    <button onClick={() => handleOpenRejectModal(inst)} className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 text-sm">Rechazar</button>
+                                                </>
+                                            )}
+                                            {(inst.status === 'POR VENCER' || inst.status === 'VENCIDO' || inst.status === 'EN ESPERA') && (
+                                                <button
+                                                    onClick={() => handleOpenReportModal(inst)}
+                                                    className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm"
+                                                >
+                                                    Reportar Pago
+                                                </button>
+                                            )}
+                                            {/* Admin actions: edit/delete */}
+                                            <button onClick={() => handleOpenEditModal(inst)} className="px-3 py-1 bg-yellow-500 text-white rounded hover:bg-yellow-600 text-sm">Editar</button>
+                                            <button onClick={() => handleDeleteInstallment(inst.installmentNumber)} disabled={isDeleting} className="px-3 py-1 bg-gray-500 text-white rounded hover:bg-gray-600 text-sm">Eliminar</button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))}
                         </tbody>
                     </table>
                 </div>
