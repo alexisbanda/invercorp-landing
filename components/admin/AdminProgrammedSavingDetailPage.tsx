@@ -7,6 +7,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { ProgrammedSaving, Deposit, UserProfile, DepositStatus } from '../../types';
 import { getProgrammedSavingById, getDepositsForSavingPlan, confirmDeposit, rejectDeposit, addManualDepositByAdmin, deleteDeposit } from '../../services/savingsService'; // Importar la nueva función
 import { getUserProfile } from '../../services/userService';
+import { GenerateReceiptModal } from './GenerateReceiptModal';
 
 // Helper para formatear fechas
 const formatDate = (date: any): string => {
@@ -94,6 +95,10 @@ const AdminProgrammedSavingDetailPage: React.FC = () => {
     const [withdrawalNotes, setWithdrawalNotes] = useState<string>('');
     const [isSubmittingWithdrawal, setIsSubmittingWithdrawal] = useState(false);
 
+    // Estado para recibos
+    const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
+    const [receiptInitialData, setReceiptInitialData] = useState<any>(null);
+
     const numeroCartola = numeroCartolaStr ? parseInt(numeroCartolaStr, 10) : NaN;
 
     const fetchData = useCallback(async () => {
@@ -135,7 +140,7 @@ const AdminProgrammedSavingDetailPage: React.FC = () => {
 
     const handleConfirm = async (deposit: Deposit) => {
         if (!currentUser || !clienteId || isNaN(numeroCartola)) return;
-        
+
         const confirmation = window.confirm(`¿Estás seguro de que quieres confirmar el depósito de $${deposit.montoDeposito.toFixed(2)}? Esta acción es irreversible.`);
         if (confirmation) {
             const toastId = toast.loading('Confirmando depósito...');
@@ -216,6 +221,19 @@ const AdminProgrammedSavingDetailPage: React.FC = () => {
         }
     };
 
+    const handleOpenReceipt = (deposit: Deposit) => {
+        if (!plan) return;
+        setReceiptInitialData({
+            concept: `Depósito Ahorro Programado - Plan ${plan.numeroCartola}`,
+            amount: deposit.montoDeposito,
+            clientName: client?.name || '',
+            clientId: client?.cedula || 'N/A',
+            receiptNumber: `DEP-${deposit.depositId.substring(0, 6)}`.toUpperCase(),
+            date: formatDate(deposit.fechaDeposito)
+        });
+        setIsReceiptModalOpen(true);
+    };
+
     if (loading) return <div className="p-8 text-center">Cargando detalles del plan...</div>;
     if (error) return <div className="p-8 text-center text-red-500">{error}</div>;
     if (!plan || !client) return <div className="p-8 text-center">No se encontraron datos del plan o del cliente.</div>;
@@ -238,7 +256,7 @@ const AdminProgrammedSavingDetailPage: React.FC = () => {
                             </span>
                         </div>
                         <p className="text-gray-500 mt-1">ID del Plan: {plan.numeroCartola}</p>
-                        
+
                         <div className="mt-6">
                             <div className="flex justify-between items-end mb-1">
                                 <span className="text-sm font-medium text-gray-600">Progreso</span>
@@ -310,6 +328,9 @@ const AdminProgrammedSavingDetailPage: React.FC = () => {
                                                     </>
                                                 )}
                                                 <button onClick={() => handleDelete(deposit)} className="bg-gray-400 hover:bg-gray-500 text-white font-semibold py-1 px-2 rounded-md text-xs transition-colors">Eliminar</button>
+                                                {deposit.estadoDeposito === DepositStatus.CONFIRMADO && (
+                                                    <button onClick={() => handleOpenReceipt(deposit)} className="bg-gray-800 hover:bg-gray-900 text-white font-semibold py-1 px-2 rounded-md text-xs transition-colors">Recibo</button>
+                                                )}
                                             </div>
                                         </td>
                                     </tr>
@@ -425,6 +446,14 @@ const AdminProgrammedSavingDetailPage: React.FC = () => {
                         </form>
                     </div>
                 </div>
+            )}
+
+            {isReceiptModalOpen && receiptInitialData && (
+                <GenerateReceiptModal
+                    isOpen={isReceiptModalOpen}
+                    onClose={() => setIsReceiptModalOpen(false)}
+                    initialData={receiptInitialData}
+                />
             )}
         </div>
     );

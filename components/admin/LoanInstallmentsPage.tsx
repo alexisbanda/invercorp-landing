@@ -8,6 +8,7 @@ import { getLoanById, approvePayment, rejectPayment, reportPaymentForInstallment
 import { addInstallment, updateInstallment, removeInstallment } from '@/services/loanService';
 import { getUserProfile } from '../../services/userService';
 import { Loan, Installment, UserProfile } from '@/types';
+import { GenerateReceiptModal } from './GenerateReceiptModal';
 
 // (Se usa el tipo `StatusChange` definido en `types.ts`; no hace falta redeclarar aquí)
 
@@ -226,6 +227,10 @@ export const LoanInstallmentsPage = () => {
     const [installmentToEdit, setInstallmentToEdit] = useState<Installment | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
 
+    // Estado para recibos
+    const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
+    const [receiptInitialData, setReceiptInitialData] = useState<any>(null);
+
 
     const fetchLoanDetails = useCallback(async () => {
         if (!loanId) {
@@ -376,6 +381,19 @@ export const LoanInstallmentsPage = () => {
         }
     };
 
+    const handleOpenReceipt = (inst: Installment) => {
+        if (!loan) return;
+        setReceiptInitialData({
+            concept: `Pago Cuota #${inst.installmentNumber} - Préstamo ${loan.id.substring(0, 6)}`,
+            amount: inst.amount,
+            clientName: loan.userName,
+            clientId: client?.cedula || 'N/A',
+            receiptNumber: `REC-${inst.installmentNumber}-${loan.id.substring(0, 4)}`.toUpperCase(),
+            date: inst.paymentReportDate ? safeFormatDate(inst.paymentReportDate) : new Date().toLocaleDateString('es-EC')
+        });
+        setIsReceiptModalOpen(true);
+    };
+
 
     if (isLoading) return <div className="p-6 text-center">Cargando detalles del préstamo...</div>;
     if (error) return <div className="p-6 text-center text-red-500">{error}</div>;
@@ -469,6 +487,14 @@ export const LoanInstallmentsPage = () => {
                                                     Reportar Pago
                                                 </button>
                                             )}
+                                            {inst.status === 'PAGADO' && (
+                                                <button
+                                                    onClick={() => handleOpenReceipt(inst)}
+                                                    className="px-3 py-1 bg-gray-800 text-white rounded hover:bg-gray-900 text-sm"
+                                                >
+                                                    Recibo
+                                                </button>
+                                            )}
                                             {/* Admin actions: edit/delete */}
                                             <button onClick={() => handleOpenEditModal(inst)} className="px-3 py-1 bg-yellow-500 text-white rounded hover:bg-yellow-600 text-sm">Editar</button>
                                             <button onClick={() => handleDeleteInstallment(inst.installmentNumber)} disabled={isDeleting} className="px-3 py-1 bg-gray-500 text-white rounded hover:bg-gray-600 text-sm">Eliminar</button>
@@ -497,6 +523,15 @@ export const LoanInstallmentsPage = () => {
                             <AddEditInstallmentForm initial={installmentToEdit} onCancel={() => setIsEditModalOpen(false)} onSubmit={handleEditSubmit} />
                         </div>
                     </div>
+
+                )}
+
+                {isReceiptModalOpen && receiptInitialData && (
+                    <GenerateReceiptModal
+                        isOpen={isReceiptModalOpen}
+                        onClose={() => setIsReceiptModalOpen(false)}
+                        initialData={receiptInitialData}
+                    />
                 )}
 
                 {/* --- SECCIÓN DE HISTORIAL DE ESTADOS --- */}

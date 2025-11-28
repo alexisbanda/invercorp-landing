@@ -3,23 +3,17 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import toast, { Toaster } from 'react-hot-toast';
-import { getServiceById, updateServiceStatus, NonFinancialService, StatusHistoryEntry } from '../../services/nonFinancialService';
+import { getServiceById, updateServiceStatus, NonFinancialService } from '../../services/nonFinancialService';
 import { getUserProfile } from '../../services/userService';
 import { UserProfile } from '../../types';
 import { formatServiceType } from '../../services/serviceDefinitions';
-import { Timestamp } from 'firebase/firestore';
 
-// Helper para formatear fechas
-const formatDate = (date: Timestamp): string => {
-    if (!date || typeof date.toDate !== 'function') return 'Fecha inválida';
-    return new Intl.DateTimeFormat('es-EC', {
-        year: 'numeric', month: 'long', day: 'numeric', 
-        hour: '2-digit', minute: '2-digit'
-    }).format(date.toDate());
-};
+
+
 
 import { WorkflowTimeline } from '../shared/WorkflowTimeline';
 import { StatusHistory } from '../shared/StatusHistory';
+import { GenerateReceiptModal } from './GenerateReceiptModal';
 
 const ServiceDetailPage: React.FC = () => {
     const { serviceId } = useParams<{ serviceId: string }>();
@@ -54,12 +48,14 @@ const ServiceDetailPage: React.FC = () => {
         fetchService();
     }, [fetchService]);
 
+    const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
+
     const handleAdvanceState = async () => {
         if (!serviceId || !service) return;
 
         const currentIndex = service.flujoCompleto.indexOf(service.estadoActual);
         if (currentIndex >= service.flujoCompleto.length - 1) {
-            toast.info('El servicio ya se encuentra en su último estado.');
+            toast('El servicio ya se encuentra en su último estado.', { icon: 'ℹ️' });
             return;
         }
 
@@ -91,7 +87,18 @@ const ServiceDetailPage: React.FC = () => {
         <div className="p-6 bg-gray-50 min-h-screen">
             <Toaster position="top-right" />
             <div className="max-w-7xl mx-auto">
-                <Link to="/portal/admin/services" className="text-blue-600 hover:underline mb-4 inline-block">&larr; Volver a Gestión de Servicios</Link>
+                <div className="flex justify-between items-center mb-4">
+                    <Link to="/portal/admin/services" className="text-blue-600 hover:underline">&larr; Volver a Gestión de Servicios</Link>
+                    <button
+                        onClick={() => setIsReceiptModalOpen(true)}
+                        className="bg-gray-800 hover:bg-gray-900 text-white font-semibold py-2 px-4 rounded-md flex items-center gap-2 transition-colors"
+                    >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        Generar Recibo
+                    </button>
+                </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     {/* Columna principal de información y acciones */}
@@ -140,7 +147,7 @@ const ServiceDetailPage: React.FC = () => {
                             </div>
                         )}
                         {isLastStep && (
-                             <div className="border-t pt-6 text-center bg-green-50 p-4 rounded-md">
+                            <div className="border-t pt-6 text-center bg-green-50 p-4 rounded-md">
                                 <h3 className="text-lg font-semibold text-green-800">¡Servicio Finalizado!</h3>
                                 <p className="text-green-700">Este servicio ha completado todos los pasos de su flujo.</p>
                             </div>
@@ -154,6 +161,19 @@ const ServiceDetailPage: React.FC = () => {
                     </div>
                 </div>
             </div>
+
+            <GenerateReceiptModal
+                isOpen={isReceiptModalOpen}
+                onClose={() => setIsReceiptModalOpen(false)}
+                initialData={{
+                    concept: formatServiceType(service.tipoDeServicio),
+                    amount: 0, // Default to 0 as we don't have cost in service model yet
+                    clientName: service.userName,
+                    clientId: client?.cedula || 'N/A',
+                    receiptNumber: service.id.substring(0, 6).toUpperCase(),
+                    date: new Date().toLocaleDateString('es-EC')
+                }}
+            />
         </div>
     );
 };
