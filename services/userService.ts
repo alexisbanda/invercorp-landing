@@ -1,5 +1,5 @@
 // services/userService.ts
-import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs, addDoc } from 'firebase/firestore';
 import { db } from '../firebase-config';
 import { UserProfile, UserRole } from '../types';
 
@@ -49,4 +49,26 @@ export const getAllClients = async (): Promise<UserProfile[]> => {
         } as UserProfile;
     });
     return clients.sort((a, b) => a.name.localeCompare(b.name)); // Ordenar para mejor UX
+};
+
+/**
+ * Crea un nuevo cliente en la colección 'users'.
+ * @param clientData Datos básicos del cliente.
+ * @returns El perfil del nuevo cliente creado.
+ */
+export const createClient = async (clientData: { name: string; cedula: string; email: string; phone?: string }): Promise<UserProfile> => {
+    const usersCollectionRef = collection(db, 'users');
+    // Asignamos el rol de cliente por defecto
+    const newClientData = {
+        ...clientData,
+        role: UserRole.CLIENT,
+        createdAt: new Date()
+    };
+
+    const docRef = await addDoc(usersCollectionRef, newClientData);
+
+    return {
+        id: docRef.id,
+        ...newClientData
+    } as UserProfile;
 };
