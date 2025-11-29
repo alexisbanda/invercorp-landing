@@ -38,29 +38,121 @@ export const GenerateReceiptModal: React.FC<GenerateReceiptModalProps> = ({
         const printContent = printRef.current;
         if (!printContent) return;
 
-        const printContents = printContent.innerHTML;
-
         // Create a temporary container for printing
         const printContainer = document.createElement('div');
-        printContainer.innerHTML = printContents;
-        printContainer.style.position = 'fixed';
-        printContainer.style.top = '0';
-        printContainer.style.left = '0';
-        printContainer.style.width = '100%';
-        printContainer.style.height = '100%';
-        printContainer.style.zIndex = '9999';
-        printContainer.style.backgroundColor = 'white';
+        printContainer.id = 'print-container-wrapper';
+
+        // We need to render the component twice for printing
+        // Since we can't easily use ReactDOM.render here without adding complexity,
+        // we will clone the DOM node and modify it if possible, or better yet,
+        // we rely on the fact that we can render the "print view" hidden in the modal 
+        // and just copy THAT.
+
+        // Let's create the print structure manually using the innerHTML of the ref
+        // But we need to inject the labels.
+        // A better approach for React is to have a "print-only" section in the JSX that is hidden on screen
+        // but visible on print. However, `react-to-print` or similar usually handles this.
+        // Here we are doing manual DOM manipulation.
+
+        // Strategy: Render the "Double Receipt" into a hidden div in the component, then print that.
+        // But to keep it simple with current setup:
+
+        const contentHTML = printContent.innerHTML;
+
+        printContainer.innerHTML = `
+            <div class="print-page">
+                <div class="receipt-copy">
+                    <div class="receipt-label">ORIGINAL: CLIENTE</div>
+                    ${contentHTML}
+                </div>
+                <div class="cut-line">
+                    <span>✂</span>
+                    <div class="dashed-line"></div>
+                </div>
+                <div class="receipt-copy">
+                    <div class="receipt-label">COPIA: INVERCOP</div>
+                    ${contentHTML}
+                </div>
+            </div>
+            <style>
+                @media print {
+                    @page {
+                        size: A4;
+                        margin: 0;
+                    }
+                    body {
+                        margin: 0;
+                        padding: 0;
+                        -webkit-print-color-adjust: exact;
+                        print-color-adjust: exact;
+                    }
+                    #print-container-wrapper {
+                        width: 100%;
+                        height: 100vh;
+                        background: white;
+                    }
+                    .print-page {
+                        width: 100%;
+                        height: 100%;
+                        display: flex;
+                        flex-direction: column;
+                        justify-content: space-between;
+                        padding: 1cm;
+                        box-sizing: border-box;
+                    }
+                    .receipt-copy {
+                        position: relative;
+                        flex: 1;
+                        display: flex;
+                        flex-direction: column;
+                        justify-content: center;
+                    }
+                    .receipt-label {
+                        position: absolute;
+                        top: 0;
+                        right: 0;
+                        font-size: 10px;
+                        font-weight: bold;
+                        color: #999;
+                        border: 1px solid #ccc;
+                        padding: 2px 6px;
+                        border-radius: 4px;
+                        text-transform: uppercase;
+                        z-index: 10;
+                    }
+                    .cut-line {
+                        height: 20px;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        position: relative;
+                        margin: 10px 0;
+                    }
+                    .cut-line span {
+                        background: white;
+                        padding: 0 10px;
+                        color: #666;
+                        font-size: 14px;
+                        z-index: 2;
+                    }
+                    .dashed-line {
+                        position: absolute;
+                        left: 0;
+                        right: 0;
+                        top: 50%;
+                        border-top: 2px dashed #ccc;
+                        z-index: 1;
+                    }
+                }
+                /* Hide everything else */
+                body > *:not(#print-container-wrapper) {
+                    display: none;
+                }
+            </style>
+        `;
 
         document.body.appendChild(printContainer);
-
-        // Hide everything else
-        const appRoot = document.getElementById('root');
-        if (appRoot) appRoot.style.display = 'none';
-
         window.print();
-
-        // Restore
-        if (appRoot) appRoot.style.display = 'block';
         document.body.removeChild(printContainer);
     };
 

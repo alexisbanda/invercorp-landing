@@ -13,6 +13,12 @@ export interface ServiceFlow {
  * Esta es la fuente de verdad para la lógica de la aplicación.
  */
 export const serviceFlows: Record<string, ServiceFlow> = {
+  "buro_credito": {
+    "flujo_ejecucion": [
+      "Pagado",
+      "Entregado"
+    ]
+  },
   "credito_emprendedor": {
     "flujo_ejecucion": [
       "Revisión de Buro",

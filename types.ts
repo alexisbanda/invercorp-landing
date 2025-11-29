@@ -9,7 +9,7 @@ export enum UserRole {
 export interface UserProfile {
     id: string;
     email: string;
-    name:string;
+    name: string;
     role: UserRole;
     cedula: string;
     numeroCartola?: string;
@@ -115,6 +115,12 @@ export interface Withdrawal {
     notaCliente?: string;
     notaAdmin?: string;
     adminProcesadorId?: string;
+    // Datos para transferencia bancaria
+    bancoDestino?: string;
+    tipoCuenta?: "Ahorros" | "Corriente";
+    numeroCuenta?: string;
+    nombreTitular?: string;
+    cedulaTitular?: string;
 }
 
 export interface ProgrammedSaving {

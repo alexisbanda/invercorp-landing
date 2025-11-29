@@ -1,24 +1,24 @@
 // services/savingsService.ts
 import { db } from '../firebase-config';
-import { 
-    collection, 
-    doc, 
-    setDoc, 
-    getDoc, 
-    getDocs, 
-    updateDoc, 
-    query, 
-    where, 
+import {
+    collection,
+    doc,
+    setDoc,
+    getDoc,
+    getDocs,
+    updateDoc,
+    query,
+    where,
     Timestamp,
     runTransaction,
     collectionGroup,
     writeBatch
 } from 'firebase/firestore';
-import { 
-    ProgrammedSaving, 
-    Deposit, 
-    ProgrammedSavingStatus, 
-    DepositStatus, 
+import {
+    ProgrammedSaving,
+    Deposit,
+    ProgrammedSavingStatus,
+    DepositStatus,
     WithdrawalStatus,
     Withdrawal
 } from '../types';
@@ -109,10 +109,10 @@ export const updateProgrammedSavingStatus = async (userId: string, numeroCartola
  */
 export const addDepositToSavingPlan = async (userId: string, numeroCartola: number, depositData: Omit<Deposit, 'depositId' | 'estadoDeposito'>): Promise<string> => {
     const depositsRef = collection(db, `users/${userId}/ahorrosProgramados/${numeroCartola}/depositos`);
-    
+
     // Crea una referencia de documento con un ID autogenerado
     const newDepositRef = doc(depositsRef);
-    
+
     // Construye el objeto completo del depósito, incluyendo el ID
     const newDeposit: Deposit = {
         ...depositData,
@@ -171,7 +171,7 @@ export const confirmDeposit = async (userId: string, numeroCartola: number, depo
         const newSaldo = (planData.saldoActual || 0) + depositData.montoDeposito;
 
         // Actualizar el saldo del plan de ahorro
-        transaction.update(planRef, { 
+        transaction.update(planRef, {
             saldoActual: newSaldo,
             ultimaActualizacion: new Date()
         });
@@ -219,7 +219,7 @@ export const getPendingDeposits = async (): Promise<any[]> => {
 
         const planSnap = await getDoc(planRef);
         if (!planSnap.exists()) return null;
-        
+
         const plan = planSnap.data() as ProgrammedSaving;
 
         return {
@@ -315,7 +315,7 @@ export const deleteDeposit = async (userId: string, numeroCartola: number, depos
         // Si el depósito estaba confirmado, hay que restar su monto del saldo actual.
         if (depositData.estadoDeposito === DepositStatus.CONFIRMADO) {
             const newSaldo = (planData.saldoActual || 0) - depositData.montoDeposito;
-            transaction.update(planRef, { 
+            transaction.update(planRef, {
                 saldoActual: newSaldo,
                 ultimaActualizacion: new Date()
             });
@@ -388,4 +388,54 @@ export const getWithdrawalsForSavingPlan = async (userId: string, numeroCartola:
     const q = query(withdrawalsRef);
     const querySnapshot = await getDocs(q);
     return querySnapshot.docs.map(doc => doc.data() as Withdrawal);
+};
+
+/**
+ * El cliente solicita un retiro (transferencia) de su plan de ahorro.
+ * @param userId - El ID del cliente.
+ * @param numeroCartola - El ID del plan de ahorro.
+ * @param withdrawalData - Datos del retiro (monto, datos bancarios).
+ * @returns El ID de la solicitud de retiro.
+ */
+export const requestWithdrawal = async (
+    userId: string,
+    numeroCartola: number,
+    withdrawalData: {
+        montoRetiro: number;
+        bancoDestino: string;
+        tipoCuenta: "Ahorros" | "Corriente";
+        numeroCuenta: string;
+        nombreTitular: string;
+        cedulaTitular: string;
+        notaCliente?: string;
+    }
+): Promise<string> => {
+    const planRef = doc(db, `users/${userId}/ahorrosProgramados`, String(numeroCartola));
+    const withdrawalsRef = collection(planRef, 'retiros');
+    const newWithdrawalRef = doc(withdrawalsRef);
+
+    await runTransaction(db, async (transaction) => {
+        const planDoc = await transaction.get(planRef);
+        if (!planDoc.exists()) {
+            throw new Error("El plan de ahorro no existe.");
+        }
+
+        const planData = planDoc.data() as ProgrammedSaving;
+
+        // Validar saldo suficiente (aunque no se descuente aún, es bueno validar)
+        if ((planData.saldoActual || 0) < withdrawalData.montoRetiro) {
+            throw new Error("Saldo insuficiente para realizar esta solicitud.");
+        }
+
+        const newWithdrawal: Withdrawal = {
+            withdrawalId: newWithdrawalRef.id,
+            fechaSolicitud: new Date(),
+            estadoRetiro: WithdrawalStatus.SOLICITADO,
+            ...withdrawalData
+        };
+
+        transaction.set(newWithdrawalRef, newWithdrawal);
+    });
+
+    return newWithdrawalRef.id;
 };
