@@ -23,9 +23,15 @@ function initializeFirebaseAdmin() {
         const serviceAccount = JSON.parse(serviceAccountKey);
         
         // Inicializamos la app y la retornamos.
-        firebaseApp = admin.initializeApp({
-            credential: admin.credential.cert(serviceAccount)
-        });
+        // Verificamos si ya hay apps inicializadas para evitar errores de duplicados si el entorno reutiliza el proceso.
+        if (admin.apps.length > 0) {
+            firebaseApp = admin.apps[0];
+        } else {
+             firebaseApp = admin.initializeApp({
+                credential: admin.credential.cert(serviceAccount)
+            });
+        }
+        
         console.log("Firebase Admin inicializado con éxito.");
         return firebaseApp;
     } catch (error: any) {
@@ -46,7 +52,6 @@ const handler: Handler = async (event: HandlerEvent) => {
   }
 
   // VALIDACIÓN CLAVE: Comprobamos la variable de entorno DENTRO del handler.
-  // Esto nos permite devolver un error JSON válido si falta la configuración.
   if (!process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
     console.error("FATAL: La variable de entorno FIREBASE_SERVICE_ACCOUNT_KEY no está configurada.");
     return {
@@ -57,74 +62,90 @@ const handler: Handler = async (event: HandlerEvent) => {
 
   let requestBody: any;
   try {
-    // --- NUEVA LÓGICA DE DEPURACIÓN Y DECODIFICACIÓN ---
-    console.log("DEBUG: event.isBase64Encoded:", event.isBase64Encoded);
-    console.log("DEBUG: Raw event.body (first 50 chars):", event.body?.substring(0, 50) + "...");
-
-    let decodedBody = event.body;
+    let decodedBody = event.body || ''; // Ensure it's a string
     if (event.isBase64Encoded && event.body) {
         decodedBody = Buffer.from(event.body, 'base64').toString('utf8');
-        console.log("DEBUG: Decoded event.body (first 50 chars):", decodedBody.substring(0, 50) + "...");
-    } else if (!event.body) {
-        // Si el body es null o undefined, tratamos como un string vacío para JSON.parse
-        decodedBody = ''; 
     }
 
     requestBody = JSON.parse(decodedBody);
-    console.log("DEBUG: Parsed requestBody:", requestBody); // Imprime el objeto JSON parseado
+    console.log("DEBUG: Parsed requestBody:", { ...requestBody, password: '[REDACTED]' }); 
 
   } catch (error: any) {
     console.error('Error al parsear el cuerpo de la solicitud:', error);
-    if (error instanceof SyntaxError) {
-        return { statusCode: 400, body: JSON.stringify({ error: 'El cuerpo de la solicitud no es un JSON válido.' }) };
-    }
-    return { statusCode: 500, body: JSON.stringify({ error: `Error interno del servidor al procesar la solicitud: ${error.message}` }) };
+    return { statusCode: 400, body: JSON.stringify({ error: 'El cuerpo de la solicitud no es un JSON válido.' }) };
   }
 
   try {
     // Inicializamos Firebase de forma segura
     const app = initializeFirebaseAdmin();
-    const auth = app.auth();
+    const auth = app!.auth(); // Aseguramos no null por la validación previa
+    const db = app!.firestore();
 
-    const { email, password, name } = requestBody; // Usamos el requestBody ya parseado
+    const { email, password, name, phone, cedula, numeroCartola, comment } = requestBody;
 
-    // Validar datos de entrada
-    if (!email || !password || !name) {
+    // Validar datos mínimos de entrada
+    if (!email || !password || !name || !cedula) {
       return {
         statusCode: 400,
-        body: JSON.stringify({ error: 'Faltan campos obligatorios: email, password, name.' }),
+        body: JSON.stringify({ error: 'Faltan campos obligatorios: email, password, name, cedula.' }),
       };
     }
 
-    // Lógica para crear/obtener usuario en Firebase Auth
+    // 1. Crear usuario en Auth
     let userRecord;
     try {
-      userRecord = await auth.getUserByEmail(email);
-      console.log(`[INFO] El usuario ${email} ya existe. Usando UID: ${userRecord.uid}`);
-    } catch (error: any) {
-      if (error.code === 'auth/user-not-found') {
-        userRecord = await auth.createUser({
-          email,
-          password,
-          displayName: name,
-        });
-        console.log(`[SUCCESS] Usuario ${email} creado con UID: ${userRecord.uid}`);
-      } else {
-        console.error('Error de Firebase Auth:', error);
-        return { statusCode: 500, body: JSON.stringify({ error: error.message }) };
+      try {
+          userRecord = await auth.getUserByEmail(email);
+          console.log(`[INFO] El usuario ${email} ya existe en Auth. Usando UID: ${userRecord.uid}`);
+      } catch (err: any) {
+          if (err.code === 'auth/user-not-found') {
+              userRecord = await auth.createUser({
+                  email,
+                  password,
+                  displayName: name,
+              });
+              console.log(`[SUCCESS] Usuario ${email} creado en Auth con UID: ${userRecord.uid}`);
+          } else {
+              throw err;
+          }
       }
+    } catch (error: any) {
+        console.error('Error de Firebase Auth:', error);
+        return { statusCode: 500, body: JSON.stringify({ error: `Error creando usuario en Auth: ${error.message}` }) };
     }
 
     const uid = userRecord.uid;
 
+    // 2. Crear perfil en Firestore
+    // Usamos set con merge: true para no sobrescribir si ya existe (idempotencia)
+    try {
+        await db.collection('users').doc(uid).set({
+            name,
+            email,
+            phone: phone || '',
+            cedula,
+            numeroCartola: numeroCartola || '',
+            comment: comment || '',
+            role: 'client', // Forzamos el rol
+            createdAt: admin.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+        
+        console.log(`[SUCCESS] Perfil de usuario ${uid} creado/actualizado en Firestore.`);
+
+    } catch (error: any) {
+        console.error('Error de Firebase Firestore:', error);
+        // Si falla Firestore y el usuario era nuevo, podríamos considerar borrar el usuario de Auth para mantener consistencia,
+        // pero por seguridad y simplicidad en este MVP, retornamos error.
+        return { statusCode: 500, body: JSON.stringify({ error: `Usuario creado en Auth, pero falló Firestore: ${error.message}` }) };
+    }
+
     return {
       statusCode: 200,
-      body: JSON.stringify({ uid: uid }),
+      body: JSON.stringify({ uid: uid, message: 'Usuario y perfil creados correctamente.' }),
     };
 
   } catch (error: any) {
     console.error('Error en la función createUser (handler principal):', error);
-    // Este catch ahora solo debería atrapar errores de la lógica de Firebase Auth
     return { statusCode: 500, body: JSON.stringify({ error: `Error interno del servidor: ${error.message}` }) };
   }
 };

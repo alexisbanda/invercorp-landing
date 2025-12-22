@@ -55,8 +55,15 @@ export const LoginPage: React.FC = () => {
             // Después del login, obtenemos el perfil del usuario para saber su rol
             const profile = await getUserProfile(userCredential.user.uid);
 
+            if (!profile) {
+                // Caso crítico: Usuario en Auth pero sin perfil en Firestore
+                await auth.signOut(); // Desconectar inmediatamente
+                setError('Error de cuenta: No se encontró el perfil de usuario. Contacte a soporte.');
+                return;
+            }
+
             // Redirigimos según el rol del usuario
-            if (profile?.role === UserRole.ADMIN) {
+            if (profile.role === UserRole.ADMIN) {
                 navigate('/portal/admin');
             } else {
                 navigate('/portal/dashboard');

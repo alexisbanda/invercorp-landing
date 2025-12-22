@@ -1,6 +1,6 @@
 // src/services/clientService.ts
 import { db } from '../firebase-config';
-import { doc, setDoc, serverTimestamp, collection, getDocs, query, where, updateDoc, deleteDoc } from 'firebase/firestore';
+import { doc, updateDoc, deleteDoc, collection, getDocs, query, where } from 'firebase/firestore';
 
 
 // Define la interfaz para los datos del nuevo cliente
@@ -28,8 +28,7 @@ export interface Client {
 
 /**
  * Orquesta la creación de un nuevo cliente.
- * 1. Llama a una función serverless para crear el usuario en Firebase Authentication de forma segura.
- * 2. Usa el UID devuelto para crear el perfil del cliente en Firestore.
+ * 1. Llama a una función serverless para crear el usuario en Firebase Authentication y el perfil en Firestore de forma atómica.
  * 
  * @param clientData Los datos completos del nuevo cliente.
  * @returns El UID del usuario recién creado.
@@ -43,9 +42,8 @@ export const createClientProfile = async (clientData: NewClientData): Promise<st
         throw new Error('Error del cliente: Faltan email, password o nombre. Revisa el objeto enviado desde el formulario.');
     }
 
-    // --- PASO 1: Crear el usuario de autenticación en el backend ---
+    // --- PASO 1: Crear el usuario y perfil en el backend ---
     // El endpoint de la Netlify Function que creamos.
-    // En desarrollo, Netlify CLI lo sirve en /.netlify/functions/createUser
     const endpoint = '/.netlify/functions/createUser';
 
     const authResponse = await fetch(endpoint, {
@@ -53,36 +51,28 @@ export const createClientProfile = async (clientData: NewClientData): Promise<st
         headers: {
             'Content-Type': 'application/json',
         },
-        // Solo enviamos los datos necesarios para la autenticación
+        // Enviamos TODOS los datos al backend
         body: JSON.stringify({
             email,
             password,
-            name
+            name,
+            phone,
+            cedula,
+            numeroCartola,
+            comment
         }),
     });
 
-    const authResult = await authResponse.json();
+    const result = await authResponse.json();
 
     if (!authResponse.ok) {
-        throw new Error(authResult.error || 'Ocurrió un error al crear el usuario de autenticación.');
+        throw new Error(result.error || 'Ocurrió un error al crear el usuario.');
     }
 
-    const uid = authResult.uid;
+    const uid = result.uid;
 
-    // --- PASO 2: Crear el perfil del cliente en Firestore con el UID obtenido ---
-    const userDocRef = doc(db, 'users', uid);
+    // --- PASO 2: Ya NO creamos el perfil en el cliente, el backend lo hizo ---
     
-    await setDoc(userDocRef, {
-        name,
-        email,
-        phone,
-        cedula,
-        numeroCartola,
-        comment,
-        role: 'client',
-        createdAt: serverTimestamp()
-    });
-
     return uid;
 };
 
