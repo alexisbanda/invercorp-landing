@@ -165,12 +165,15 @@ const ServiceDetailPage: React.FC = () => {
             <GenerateReceiptModal
                 isOpen={isReceiptModalOpen}
                 onClose={() => setIsReceiptModalOpen(false)}
+                existingReceipts={service.recibos} // Pass persisted receipts
+                onReceiptGenerated={fetchService} // Refresh to get new receipts
                 initialData={{
+                    serviceId: service.id,
                     concept: formatServiceType(service.tipoDeServicio),
-                    amount: 0, // Default to 0 as we don't have cost in service model yet
+                    amount: 0, // Default to 0
                     clientName: service.userName,
                     clientId: client?.cedula || 'N/A',
-                    receiptNumber: service.id.substring(0, 6).toUpperCase(),
+                    receiptNumber: service.id.substring(0, 6).toUpperCase(), // Fallback
                     date: new Date().toLocaleDateString('es-EC')
                 }}
             />

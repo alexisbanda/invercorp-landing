@@ -12,7 +12,8 @@ import {
     Timestamp,
     runTransaction,
     collectionGroup,
-    writeBatch
+    writeBatch,
+    deleteDoc
 } from 'firebase/firestore';
 import {
     ProgrammedSaving,
@@ -438,4 +439,36 @@ export const requestWithdrawal = async (
     });
 
     return newWithdrawalRef.id;
+};
+
+/**
+ * Elimina un plan de ahorro programado y todas sus subcolecciones (depósitos y retiros).
+ * @param userId - El ID del cliente.
+ * @param numeroCartola - El ID del plan de ahorro.
+ */
+export const deleteProgrammedSaving = async (userId: string, numeroCartola: number): Promise<void> => {
+    const planRef = doc(db, `users/${userId}/ahorrosProgramados`, String(numeroCartola));
+
+    // 1. Eliminar subcolección 'depositos'
+    const depositsRef = collection(planRef, 'depositos');
+    const depositsSnapshot = await getDocs(depositsRef);
+    const batch = writeBatch(db);
+    
+    depositsSnapshot.forEach((doc) => {
+        batch.delete(doc.ref);
+    });
+
+    // 2. Eliminar subcolección 'retiros'
+    const withdrawalsRef = collection(planRef, 'retiros');
+    const withdrawalsSnapshot = await getDocs(withdrawalsRef);
+    
+    withdrawalsSnapshot.forEach((doc) => {
+        batch.delete(doc.ref);
+    });
+
+    // Ejecutar borrado masivo de subcolecciones
+    await batch.commit();
+
+    // 3. Eliminar el documento principal
+    await deleteDoc(planRef);
 };

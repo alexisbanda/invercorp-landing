@@ -134,13 +134,13 @@ export interface ProgrammedSaving {
     fechaFinEstimada: Date; // timestamp
     saldoActual: number;
     estadoPlan: ProgrammedSavingStatus;
-    fechaCreacion: Date; // timestamp
-    ultimaActualizacion: Date; // timestamp
+    fechaCreacion: Date | any; // Timestamp en Firestore
+    ultimaActualizacion: Date | any;
     adminCreadorId: string;
     depositos?: Deposit[]; // This could be a subcollection
     retiros?: Withdrawal[]; // This could be a subcollection
     advisorId?: string;
-    advisorName?: string;
+    advisorName?: string; // Nombre del asesor
 }
 
 export interface Advisor {

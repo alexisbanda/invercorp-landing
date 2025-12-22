@@ -135,7 +135,7 @@ const AdminNewProgrammedSavingForm: React.FC = () => {
             await createProgrammedSaving(selectedClientId, {
                 nombrePlan: formData.nombrePlan,
                 montoMeta: formData.montoMeta,
-                frecuenciaDepositoSugerida: formData.frecuenciaDepositoSugerida,
+                frecuenciaDepositoSugerida: formData.frecuenciaDepositoSugerida as 'Mensual' | 'Quincenal' | 'Semanal',
                 montoDepositoSugerido: formData.montoDepositoSugerido,
                 fechaInicioPlan: new Date(formData.fechaInicioPlan), // Convertir a Date object
                 advisorId: selectedAdvisor?.id,
@@ -145,7 +145,7 @@ const AdminNewProgrammedSavingForm: React.FC = () => {
             });
 
             toast.success(`Plan de ahorro creado con éxito para ${client.name}.`, { id: toastId });
-            navigate(`/portal/admin/ahorros`); // Navega a la lista de ahorros o al detalle del nuevo plan
+            navigate(`/portal/admin/savings`); // Navega a la lista de ahorros o al detalle del nuevo plan
 
         } catch (err) {
             toast.error((err as Error).message || 'Error al crear el plan de ahorro.', { id: toastId });

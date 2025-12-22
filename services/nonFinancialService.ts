@@ -1,12 +1,12 @@
 
-// src/services/nonFinancialService.ts
-import { 
+import { // src/services/nonFinancialService.ts
     collection, 
     doc, 
     addDoc, 
     getDocs, 
     getDoc, 
     updateDoc, 
+    deleteDoc,
     arrayUnion, 
     Timestamp,
     query,
@@ -38,7 +38,101 @@ export interface NonFinancialService {
     fechaUltimaActualizacion: Timestamp;
     advisorId?: string;
     advisorName?: string;
+    recibos?: ServiceReceipt[];
 }
+
+export interface ServiceReceipt {
+    id: string;
+    number: string;
+    amount: number;
+    concept: string;
+    date: Timestamp;
+    issuedBy: string;
+    status: 'valid' | 'void';
+    voidReason?: string;
+    voidedBy?: string;
+    voidDate?: Timestamp;
+}
+
+/**
+ * Agrega un nuevo recibo al servicio.
+ */
+export const addReceipt = async (serviceId: string, amount: number, concept: string): Promise<ServiceReceipt> => {
+    const currentUser = auth.currentUser;
+    if (!currentUser) throw new Error('Usuario no autenticado');
+
+    const serviceRef = doc(db, 'servicios', serviceId);
+    const serviceDoc = await getDoc(serviceRef);
+    
+    if (!serviceDoc.exists()) throw new Error('Servicio no encontrado');
+    
+    const serviceData = serviceDoc.data() as NonFinancialService;
+    const currentReceipts = serviceData.recibos || [];
+    
+    // Generar secuencial: ID-001, ID-002...
+    const sequence = currentReceipts.length + 1;
+    const sequenceStr = sequence.toString().padStart(3, '0');
+    // Usamos el ID del servicio (primeros 6 chars) + secuencial
+    const shortId = serviceId.substring(0, 6).toUpperCase();
+    const receiptNumber = `${shortId}-${sequenceStr}`;
+
+    const newReceipt: ServiceReceipt = {
+        id: crypto.randomUUID(), // ID único interno del recibo
+        number: receiptNumber,   // ID legible para el humano
+        amount,
+        concept,
+        date: Timestamp.now(),
+        issuedBy: currentUser.email || 'unknown',
+        status: 'valid'
+    };
+
+    await updateDoc(serviceRef, {
+        recibos: arrayUnion(newReceipt)
+    });
+
+    return newReceipt;
+};
+
+/**
+ * Anula un recibo existente.
+ */
+export const voidReceipt = async (serviceId: string, receiptId: string, reason: string): Promise<void> => {
+    const currentUser = auth.currentUser;
+    if (!currentUser) throw new Error('Usuario no autenticado');
+
+    const serviceRef = doc(db, 'servicios', serviceId);
+    const serviceDoc = await getDoc(serviceRef);
+
+    if (!serviceDoc.exists()) throw new Error('Servicio no encontrado');
+
+    const serviceData = serviceDoc.data() as NonFinancialService;
+    const currentReceipts = serviceData.recibos || [];
+
+    // Validar que el recibo existe
+    const receiptIndex = currentReceipts.findIndex(r => r.id === receiptId);
+    if (receiptIndex === -1) throw new Error('Recibo no encontrado');
+
+    const targetReceipt = currentReceipts[receiptIndex];
+    
+    if (targetReceipt.status === 'void') throw new Error('El recibo ya está anulado');
+
+    // Firestore no permite actualizar un elemento específico de un array fácilmente sin sobrescribir todo el array
+    // O usar arrayRemove + arrayUnion, pero eso cambia el orden o requiere el objeto exacto original.
+    // La estrategia más segura aquí es leer, modificar en memoria, y guardar el array completo.
+    
+    const updatedReceipts = [...currentReceipts];
+    updatedReceipts[receiptIndex] = {
+        ...targetReceipt,
+        status: 'void',
+        voidReason: reason,
+        voidedBy: currentUser.email || 'unknown',
+        voidDate: Timestamp.now()
+    };
+
+    await updateDoc(serviceRef, {
+        recibos: updatedReceipts
+    });
+};
 
 // Datos necesarios para crear un nuevo servicio
 export interface NewServiceData {
@@ -95,6 +189,18 @@ export const createService = async (data: NewServiceData): Promise<string> => {
 
     const docRef = await addDoc(collection(db, 'servicios'), newServiceDoc);
     return docRef.id;
+};
+
+/**
+ * Elimina un servicio no financiero de la base de datos.
+ * @param serviceId El ID del servicio a eliminar.
+ */
+export const deleteService = async (serviceId: string): Promise<void> => {
+    const currentUser = auth.currentUser;
+    if (!currentUser) throw new Error('Usuario no autenticado');
+
+    const serviceDocRef = doc(db, 'servicios', serviceId);
+    await deleteDoc(serviceDocRef);
 };
 
 /**

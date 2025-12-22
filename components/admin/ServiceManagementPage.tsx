@@ -1,7 +1,7 @@
 // src/components/admin/ServiceManagementPage.tsx
 import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { Toaster } from 'react-hot-toast';
+import toast, { Toaster } from 'react-hot-toast';
 import { getAllServices, NonFinancialService } from '../../services/nonFinancialService';
 import { serviceTypeNames, formatServiceType, ServiceType } from '../../services/serviceDefinitions';
 
@@ -137,13 +137,51 @@ const ServiceManagementPage: React.FC = () => {
                                         {service.fechaSolicitud.toDate().toLocaleDateString('es-EC')}
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-center">
-                                        <Link
-                                            to={`/portal/admin/services/${service.id}`}
-                                            className="bg-blue-500 hover:bg-blue-700 text-white font-semibold py-1 px-3 rounded-md text-xs transition-colors duration-200"
-                                            title="Gestionar Servicio"
-                                        >
-                                            Gestionar
-                                        </Link>
+                                        <div className="flex justify-center gap-2">
+                                            <Link
+                                                to={`/portal/admin/services/${service.id}`}
+                                                className="bg-blue-500 hover:bg-blue-700 text-white font-semibold py-1 px-3 rounded-md text-xs transition-colors duration-200"
+                                                title="Gestionar Servicio"
+                                            >
+                                                Gestionar
+                                            </Link>
+                                            <button
+                                                onClick={() => {
+                                                    if (window.confirm('¿Está seguro de eliminar este servicio? Esta acción no se puede deshacer.')) {
+                                                        const loadingId = toast.loading('Eliminando servicio...');
+                                                        // We need to import deleteService dynamically or at top-level
+                                                        // Since we can't easily change top imports in this chunk, 
+                                                        // we assume it is added or we use a clever way.
+                                                        // Actually, we should add the import at the top first or in another step.
+                                                        // But to keep it atomic, I will add logic here relying on import being present.
+                                                        // Wait, I haven't added the import yet. I should have done that first.
+                                                        // Let's defer functionality until import is added.
+                                                        // I will just add the button UI here and the function calls.
+                                                        
+                                                        // Note: I will need to update the import in another step.
+                                                        // For now, I'll alert error if not ready or use the function if imported.
+                                                        
+                                                        import('../../services/nonFinancialService').then(({ deleteService }) => {
+                                                             deleteService(service.id)
+                                                                .then(() => {
+                                                                    toast.success('Servicio eliminado', { id: loadingId });
+                                                                    setServices(prev => prev.filter(s => s.id !== service.id));
+                                                                })
+                                                                .catch(err => {
+                                                                    console.error(err);
+                                                                    toast.error('Error al eliminar', { id: loadingId });
+                                                                });
+                                                        });
+                                                    }
+                                                }}
+                                                className="bg-red-500 hover:bg-red-700 text-white font-semibold py-1 px-2 rounded-md text-xs transition-colors duration-200 flex items-center"
+                                                title="Eliminar Servicio"
+                                            >
+                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                </svg>
+                                            </button>
+                                        </div>
                                     </td>
                                 </tr>
                             )) : (
