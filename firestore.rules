@@ -1,0 +1,149 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // --- Funciones de Ayuda (Helpers) ---
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+             && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // --- Reglas para la Colección 'users' ---
+    match /users/{userId} {
+      // PERMISO DE CREACIÓN (CREATE)
+      // FIX: Permitir a los administradores crear usuarios sin restricciones estrictas de validación.
+      // FIX: Mantener la validación para creaciones ordinarias.
+      allow create: if isAdmin() || (
+                        request.resource.data.name is string &&
+                        request.resource.data.name.size() > 0 &&
+                        request.resource.data.email is string &&
+                        request.resource.data.email.matches('.+@.+\\..+') &&
+                        request.resource.data.phone is string &&
+                        request.resource.data.cedula is string &&
+                        request.resource.data.role == 'client' &&
+                        request.resource.data.createdAt == request.time
+                    );
+
+      // PERMISO DE LECTURA (READ)
+      allow read: if request.auth != null && (request.auth.uid == userId || isAdmin());
+
+      // PERMISO DE ACTUALIZACIÓN (UPDATE)
+      allow update: if request.auth != null && (request.auth.uid == userId || isAdmin());
+
+      // PERMISO DE ELIMINACIÓN (DELETE)
+      allow delete: if isAdmin();
+
+      // --- Reglas para Ahorro Programado (dentro de un usuario) ---
+      match /ahorrosProgramados/{planId} {
+        // Los administradores pueden leer y crear planes de ahorro para cualquier usuario.
+        // El propietario (cliente) solo puede leer sus propios planes.
+        allow read: if isOwner(userId) || isAdmin();
+        allow create: if isAdmin(); // Solo el admin puede crear planes de ahorro
+        allow update, delete: if isAdmin(); // Solo el admin puede actualizar/eliminar planes
+
+        // --- Reglas para Depósitos (dentro de un plan de ahorro de un usuario) ---
+        match /depositos/{depositoId} {
+          // El propietario (cliente) puede leer sus depósitos y crear nuevos (reportar).
+          // El administrador puede leer, crear, actualizar y eliminar CUALQUIER depósito.
+          allow read: if isOwner(userId) || isAdmin();
+          // Permitir crear depósitos:
+          // - Si es el propietario Y cumple con la validación de cliente (isCreatingValidDeposit)
+          // - O si es un administrador (sin la validación estricta de cliente)
+          allow create: if (isOwner(userId) && isCreatingValidDeposit(depositoId, request.resource.data)) || isAdmin();
+          allow update, delete: if isAdmin(); // Solo el admin puede actualizar/eliminar depósitos
+        }
+        match /retiros/{retiroId} {
+          allow read: if isOwner(userId) || isAdmin();
+          allow create, update, delete: if isAdmin();
+        }
+      }
+    }
+    
+    // Reglas para la colección 'ahorrosProgramados' (a nivel de grupo de colección)
+    // Esto permite a los admins consultar todos los planes de ahorro sin pasar por un userId específico.
+    match /{path=**}/ahorrosProgramados/{ahorroId} {
+      allow read: if isAdmin();
+      // No allow create/write aquí, ya que la creación se maneja en la subcolección de usuario.
+    }
+
+    // Regla para permitir a los admins consultar todos los depósitos a la vez.
+    // Esta regla permite LISTAR (consultar) depósitos desde la raíz de la colección group.
+    match /{path=**}/depositos/{depositoId} {
+      allow list: if isAdmin();
+    }
+
+    // --- Reglas para 'loans' (préstamos) ---
+    match /loans/{loanId} {
+      allow read: if (isAuthenticated() && isOwner(resource.data.userId)) || isAdmin();
+      allow update: if (isAuthenticated() && isOwner(resource.data.userId)) || isAdmin();
+      allow create, delete: if isAdmin();
+    }
+    
+    // --- Reglas para la colección "servicios" ---
+    match /servicios/{serviceId} {
+     
+           // LECTURA (get, list)
+          // Permite leer si el usuario es admin O si es el dueño del documento.
+          allow read: if
+            get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'
+            || resource.data.clienteId == request.auth.uid;
+    
+          // ESCRITURA (create, update, delete)
+          // Permite escribir (crear, actualizar) únicamente si el usuario es admin.
+         allow write: if
+            get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+   }
+   match /advisors/{advisorId} {
+          // Allow read access to any authenticated admin.
+          // This is necessary for listing advisors in the dropdowns and management 
+    
+    allow read: if request.auth != null &&
+      get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    
+          // Allow create, update, and delete operations only for authenticated 
+      
+          allow write: if request.auth != null &&
+      get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+   }
+
+    // --- Funciones de Ayuda para la validación ---
+
+    // Valida que un cliente esté creando un depósito correctamente.
+    function isCreatingValidDeposit(depositoId, depositData) {
+      // 1. El ID del documento debe coincidir con el campo 'depositId'.
+      // 2. El estado debe ser 'En Verificación' (el cliente no puede confirmar un pago directamente).
+      // 3. Los campos de admin NO DEBEN EXISTIR en la solicitud de creación de un cliente.
+      // 4. El monto debe ser un número positivo.
+      return depositData.depositoId == depositoId &&
+             depositData.estadoDeposito == 'En Verificación' &&
+             !('adminVerificadorId' in depositData) &&
+             !('notaAdmin' in depositData) &&
+             !('fechaVerificacion' in depositData) &&
+             depositData.montoDeposito is number && depositData.montoDeposito > 0;
+    }
+
+    // Las funciones isReportingPayment y hasValidPaymentReportChanges son para préstamos,
+    // asegúrate de que se apliquen solo a las reglas de 'loans' y no interfieran con 'ahorrosProgramados'.
+    // Su ubicación actual (fuera de cualquier match específico) significa que son accesibles globalmente,
+    // pero solo se usarán si son llamadas en una regla de match.
+
+    // Valida que la actualización sea un reporte de pago válido por parte del cliente (para préstamos).
+    function isReportingPayment(requestData, existingData) {
+      // ... (tu lógica existente para préstamos)
+      return true; // Placeholder
+    }
+
+    function hasValidPaymentReportChanges(requestInstallment, existingInstallment) {
+      // ... (tu lógica existente para préstamos)
+      return true; // Placeholder
+    }
+  }
+}

@@ -1,5 +1,5 @@
-// services/userService.ts
-import { doc, getDoc, collection, query, where, getDocs, addDoc } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs, addDoc, serverTimestamp } from 'firebase/firestore';
+
 import { db } from '../firebase-config';
 import { UserProfile, UserRole } from '../types';
 
@@ -24,7 +24,7 @@ export const getUserProfile = async (uid: string): Promise<UserProfile | null> =
         name: data.name,
         cedula: data.cedula,
         // Aseguramos que el rol por defecto sea 'client' si no está definido
-        role: data.role || UserRole.CLIENT,
+        role: (data.role ? data.role.toLowerCase().trim() : UserRole.CLIENT) as UserRole,
     } as UserProfile;
 };
 
@@ -62,7 +62,7 @@ export const createClient = async (clientData: { name: string; cedula: string; e
     const newClientData = {
         ...clientData,
         role: UserRole.CLIENT,
-        createdAt: new Date()
+        createdAt: serverTimestamp()
     };
 
     const docRef = await addDoc(usersCollectionRef, newClientData);
