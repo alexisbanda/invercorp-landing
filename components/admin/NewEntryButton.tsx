@@ -1,8 +1,11 @@
 // src/components/admin/NewEntryButton.tsx
 import React, { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
+import { UserRole } from '../../types';
 
 const NewEntryButton: React.FC = () => {
+    const { userProfile } = useAuth();
     const [isOpen, setIsOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -37,12 +40,16 @@ const NewEntryButton: React.FC = () => {
                         <Link to="/portal/admin/clients/new" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" role="menuitem" onClick={() => setIsOpen(false)}>
                             Nuevo Cliente
                         </Link>
-                        <Link to="/portal/admin/savings/new" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" role="menuitem" onClick={() => setIsOpen(false)}>
-                            Nuevo Ahorro Programado
-                        </Link>
-                        <Link to="/portal/admin/loans/new" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" role="menuitem" onClick={() => setIsOpen(false)}>
-                            Nuevo Préstamo
-                        </Link>
+                        {userProfile?.role === UserRole.ADMIN && (
+                            <>
+                                <Link to="/portal/admin/savings/new" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" role="menuitem" onClick={() => setIsOpen(false)}>
+                                    Nuevo Ahorro Programado
+                                </Link>
+                                <Link to="/portal/admin/loans/new" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" role="menuitem" onClick={() => setIsOpen(false)}>
+                                    Nuevo Préstamo
+                                </Link>
+                            </>
+                        )}
                         <div className="border-t border-gray-100"></div>
                         <Link to="/portal/admin/services/new" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" role="menuitem" onClick={() => setIsOpen(false)}>
                             Nuevo Servicio

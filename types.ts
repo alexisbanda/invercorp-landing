@@ -4,6 +4,7 @@
 export enum UserRole {
     CLIENT = 'client',
     ADMIN = 'admin',
+    ADVISOR = 'advisor',
 }
 
 export interface UserProfile {
@@ -14,6 +15,7 @@ export interface UserProfile {
     cedula: string;
     numeroCartola?: string;
     phone?: string;
+    advisorCollectionId?: string; // ID del documento en la colección 'advisors'
 }
 
 export interface Installment {

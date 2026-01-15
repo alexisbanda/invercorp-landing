@@ -11,8 +11,8 @@ export const AdminProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ c
         return <div>Cargando...</div>; // O un spinner más elegante
     }
 
-    // Si hay un usuario y su rol es ADMIN, permite el acceso
-    if (currentUser && userProfile?.role === UserRole.ADMIN) {
+    // Si hay un usuario y su rol es ADMIN o ADVISOR, permite el acceso
+    if (currentUser && (userProfile?.role === UserRole.ADMIN || userProfile?.role === UserRole.ADVISOR)) {
         return <>{children}</>;
     }
 

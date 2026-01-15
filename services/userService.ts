@@ -25,6 +25,7 @@ export const getUserProfile = async (uid: string): Promise<UserProfile | null> =
         cedula: data.cedula,
         // Aseguramos que el rol por defecto sea 'client' si no está definido
         role: (data.role ? data.role.toLowerCase().trim() : UserRole.CLIENT) as UserRole,
+        advisorCollectionId: data.advisorCollectionId,
     } as UserProfile;
 };
 

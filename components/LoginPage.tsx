@@ -62,8 +62,9 @@ export const LoginPage: React.FC = () => {
                 return;
             }
 
-            // Redirigimos según el rol del usuario
-            if (profile.role === UserRole.ADMIN) {
+            if (profile.role === UserRole.ADVISOR) {
+                navigate('/portal/admin/services');
+            } else if (profile.role === UserRole.ADMIN) {
                 navigate('/portal/admin');
             } else {
                 navigate('/portal/dashboard');

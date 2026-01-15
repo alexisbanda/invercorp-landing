@@ -5,10 +5,11 @@ import { Link, NavLink } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { signOut } from 'firebase/auth';
 import { auth } from '../../firebase-config';
+import { UserRole } from '../../types';
 import NewEntryButton from './NewEntryButton';
 
 export const AdminHeader: React.FC = () => {
-    const { currentUser } = useAuth();
+    const { currentUser, userProfile } = useAuth();
     const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const userMenuRef = useRef<HTMLDivElement>(null);
@@ -59,11 +60,17 @@ export const AdminHeader: React.FC = () => {
                         </Link>
                         <nav className="hidden md:block ml-10">
                             <div className="flex items-baseline space-x-4">
-                                <NavLink to="/portal/admin/reports" className={navLinkClass}>Reportes</NavLink>
+                                {currentUser && userProfile?.role === UserRole.ADMIN && (
+                                    <NavLink to="/portal/admin/reports" className={navLinkClass}>Reportes</NavLink>
+                                )}
                                 <NavLink to="/portal/admin/clients" className={navLinkClass}>Clientes</NavLink>
-                                <NavLink to="/portal/admin/advisors" className={navLinkClass}>Asesores</NavLink>
-                                <NavLink to="/portal/admin/management" className={navLinkClass}>Préstamos</NavLink>
-                                <NavLink to="/portal/admin/savings" className={navLinkClass}>Planes de Ahorro</NavLink>
+                                {currentUser && userProfile?.role === UserRole.ADMIN && (
+                                    <>
+                                        <NavLink to="/portal/admin/advisors" className={navLinkClass}>Asesores</NavLink>
+                                        <NavLink to="/portal/admin/management" className={navLinkClass}>Préstamos</NavLink>
+                                        <NavLink to="/portal/admin/savings" className={navLinkClass}>Planes de Ahorro</NavLink>
+                                    </>
+                                )}
                                 <NavLink to="/portal/admin/services" className={navLinkClass}>Servicios</NavLink>
                             </div>
                         </nav>
@@ -122,11 +129,17 @@ export const AdminHeader: React.FC = () => {
             {/* Panel de Menú Móvil */}
             <div className={`${isMobileMenuOpen ? 'block' : 'hidden'} md:hidden border-t border-gray-700`} id="mobile-menu">
                 <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
-                    <NavLink to="/portal/admin/reports" className={mobileNavLinkClass} onClick={() => setIsMobileMenuOpen(false)}>Reportes</NavLink>
+                    {currentUser && userProfile?.role === UserRole.ADMIN && (
+                        <NavLink to="/portal/admin/reports" className={mobileNavLinkClass} onClick={() => setIsMobileMenuOpen(false)}>Reportes</NavLink>
+                    )}
                     <NavLink to="/portal/admin/clients" className={mobileNavLinkClass} onClick={() => setIsMobileMenuOpen(false)}>Clientes</NavLink>
-                    <NavLink to="/portal/admin/advisors" className={mobileNavLinkClass} onClick={() => setIsMobileMenuOpen(false)}>Asesores</NavLink>
-                    <NavLink to="/portal/admin/management" className={mobileNavLinkClass} onClick={() => setIsMobileMenuOpen(false)}>Préstamos</NavLink>
-                    <NavLink to="/portal/admin/savings" className={mobileNavLinkClass} onClick={() => setIsMobileMenuOpen(false)}>Planes de Ahorro</NavLink>
+                    {currentUser && userProfile?.role === UserRole.ADMIN && (
+                        <>
+                            <NavLink to="/portal/admin/advisors" className={mobileNavLinkClass} onClick={() => setIsMobileMenuOpen(false)}>Asesores</NavLink>
+                            <NavLink to="/portal/admin/management" className={mobileNavLinkClass} onClick={() => setIsMobileMenuOpen(false)}>Préstamos</NavLink>
+                            <NavLink to="/portal/admin/savings" className={mobileNavLinkClass} onClick={() => setIsMobileMenuOpen(false)}>Planes de Ahorro</NavLink>
+                        </>
+                    )}
                     <NavLink to="/portal/admin/services" className={mobileNavLinkClass} onClick={() => setIsMobileMenuOpen(false)}>Servicios</NavLink>
                 </div>
                 <div className="pt-4 pb-3 border-t border-gray-700">

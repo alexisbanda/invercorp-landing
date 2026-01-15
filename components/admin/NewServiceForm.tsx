@@ -7,11 +7,14 @@ import { getAllClients, createClient } from '../../services/userService';
 import { UserProfile } from '../../types';
 import { getAllAdvisors } from '../../services/advisorService';
 import { createService, NewServiceData } from '../../services/nonFinancialService';
+import { useAuth } from '../../contexts/AuthContext';
 import { serviceTypeNames, formatServiceType, ServiceType } from '../../services/serviceDefinitions';
-import { Advisor } from '../../types';
+import { Advisor, UserRole } from '../../types';
 
 const NewServiceForm: React.FC = () => {
     const navigate = useNavigate();
+    const { userProfile } = useAuth();
+    const isAdvisor = userProfile?.role === UserRole.ADVISOR;
 
     // Estados del componente
     const [clients, setClients] = useState<UserProfile[]>([]);
@@ -42,6 +45,17 @@ const NewServiceForm: React.FC = () => {
         descripcionCliente: '',
         advisorId: '',
     });
+
+    // Efecto para aplicar restricciones de Advisor
+    useEffect(() => {
+        if (isAdvisor && userProfile?.advisorCollectionId) {
+            setFormData(prev => ({ 
+                ...prev, 
+                advisorId: userProfile.advisorCollectionId!,
+                tipoDeServicio: 'buro_credito' // Pre-seleccionar el único permitido
+            }));
+        }
+    }, [isAdvisor, userProfile]);
 
     // Cargar clientes al montar el componente
     useEffect(() => {
@@ -157,7 +171,9 @@ const NewServiceForm: React.FC = () => {
         <div className="p-6 bg-gray-100 min-h-screen flex items-center justify-center">
             <Toaster position="top-right" />
             <div className="max-w-2xl w-full bg-white p-8 rounded-lg shadow-xl border border-gray-200">
-                <h1 className="text-3xl font-extrabold text-gray-800 mb-6 text-center">Nueva Solicitud de Servicio</h1>
+                <h1 className="text-3xl font-extrabold text-gray-800 mb-6 text-center">
+                    {isAdvisor ? 'Nueva Solicitud de Buró' : 'Nueva Solicitud de Servicio'}
+                </h1>
 
                 <form onSubmit={handleSubmit} className="space-y-6">
                     {/* Selección de Cliente */}
@@ -202,8 +218,8 @@ const NewServiceForm: React.FC = () => {
                             name="advisorId"
                             value={formData.advisorId}
                             onChange={handleChange}
-                            className="mt-1 block w-full px-4 py-2 text-base border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                            disabled={advisors.length === 0}
+                            className="mt-1 block w-full px-4 py-2 text-base border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:text-gray-500"
+                            disabled={advisors.length === 0 || isAdvisor} // Bloquear si es advisor
                         >
                             <option value="">-- Elige un asesor --</option>
                             {advisors.map(a => (
@@ -229,11 +245,14 @@ const NewServiceForm: React.FC = () => {
                             name="tipoDeServicio"
                             value={formData.tipoDeServicio}
                             onChange={handleChange}
-                            className="mt-1 block w-full px-4 py-2 text-base border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                            className="mt-1 block w-full px-4 py-2 text-base border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:text-gray-500"
                             required
+                            disabled={isAdvisor} // Bloquear si es advisor (ya que solo hay uno)
                         >
                             <option value="">-- Elige un servicio --</option>
-                            {serviceTypeNames.map(type => (
+                            {serviceTypeNames
+                                .filter(type => isAdvisor ? type === 'buro_credito' : true)
+                                .map(type => (
                                 <option key={type} value={type}>
                                     {formatServiceType(type)}
                                 </option>

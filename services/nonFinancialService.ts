@@ -291,3 +291,21 @@ export const getServicesByClientId = async (clientId: string): Promise<NonFinanc
         ...doc.data(),
     } as NonFinancialService));
 };
+
+/**
+ * Obtiene todos los servicios asignados a un asesor específico.
+ * @param advisorId El ID del asesor (documento en la colección advisors).
+ * @returns Un array de objetos NonFinancialService.
+ */
+export const getServicesByAdvisorId = async (advisorId: string): Promise<NonFinancialService[]> => {
+    const servicesCollection = collection(db, 'servicios');
+    const q = query(servicesCollection, where("advisorId", "==", advisorId));
+    const snapshot = await getDocs(q);
+    if (snapshot.empty) {
+        return [];
+    }
+    return snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+    } as NonFinancialService));
+};
