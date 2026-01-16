@@ -19,6 +19,14 @@ export const serviceFlows: Record<string, ServiceFlow> = {
       "Entregado"
     ]
   },
+  "apertura_cuenta": {
+    "flujo_ejecucion": [
+      "Recepción de Documentos",
+      "Verificación",
+      "Apertura en Sistema",
+      "Entrega de Credenciales"
+    ]
+  },
   "credito_emprendedor": {
     "flujo_ejecucion": [
       "Revisión de Buro",
