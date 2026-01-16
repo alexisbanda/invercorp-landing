@@ -37,9 +37,11 @@ const NewEntryButton: React.FC = () => {
             {isOpen && (
                 <div className="origin-top-right absolute right-0 mt-2 w-56 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-10">
                     <div className="py-1" role="menu" aria-orientation="vertical" aria-labelledby="options-menu">
-                        <Link to="/portal/admin/clients/new" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" role="menuitem" onClick={() => setIsOpen(false)}>
-                            Nuevo Cliente
-                        </Link>
+                        {userProfile?.role === UserRole.ADMIN && (
+                            <Link to="/portal/admin/clients/new" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" role="menuitem" onClick={() => setIsOpen(false)}>
+                                Nuevo Cliente
+                            </Link>
+                        )}
                         {userProfile?.role === UserRole.ADMIN && (
                             <>
                                 <Link to="/portal/admin/savings/new" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" role="menuitem" onClick={() => setIsOpen(false)}>

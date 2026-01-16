@@ -51,8 +51,7 @@ const NewServiceForm: React.FC = () => {
         if (isAdvisor && userProfile?.advisorCollectionId) {
             setFormData(prev => ({ 
                 ...prev, 
-                advisorId: userProfile.advisorCollectionId!,
-                tipoDeServicio: 'buro_credito' // Pre-seleccionar el único permitido
+                advisorId: userProfile.advisorCollectionId!
             }));
         }
     }, [isAdvisor, userProfile]);
@@ -247,11 +246,9 @@ const NewServiceForm: React.FC = () => {
                             onChange={handleChange}
                             className="mt-1 block w-full px-4 py-2 text-base border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:text-gray-500"
                             required
-                            disabled={isAdvisor} // Bloquear si es advisor (ya que solo hay uno)
                         >
                             <option value="">-- Elige un servicio --</option>
                             {serviceTypeNames
-                                .filter(type => isAdvisor ? type === 'buro_credito' : true)
                                 .map(type => (
                                 <option key={type} value={type}>
                                     {formatServiceType(type)}
