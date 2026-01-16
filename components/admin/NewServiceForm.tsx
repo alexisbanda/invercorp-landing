@@ -171,7 +171,7 @@ const NewServiceForm: React.FC = () => {
             <Toaster position="top-right" />
             <div className="max-w-2xl w-full bg-white p-8 rounded-lg shadow-xl border border-gray-200">
                 <h1 className="text-3xl font-extrabold text-gray-800 mb-6 text-center">
-                    {isAdvisor ? 'Nueva Solicitud de Buró' : 'Nueva Solicitud de Servicio'}
+                    Nueva Solicitud de Servicio
                 </h1>
 
                 <form onSubmit={handleSubmit} className="space-y-6">
