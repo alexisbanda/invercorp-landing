@@ -3,7 +3,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import toast, { Toaster } from 'react-hot-toast';
-import { getServiceById, updateServiceStatus, NonFinancialService } from '../../services/nonFinancialService';
+import { getServiceById, updateServiceStatus, NonFinancialService, Attachment } from '../../services/nonFinancialService';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { storage } from '../../firebase-config';
 import { getUserProfile } from '../../services/userService';
 import { UserProfile } from '../../types';
 import { formatServiceType } from '../../services/serviceDefinitions';
@@ -23,6 +25,8 @@ const ServiceDetailPage: React.FC = () => {
     const [isUpdating, setIsUpdating] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [notes, setNotes] = useState('');
+    const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+    const [fileError, setFileError] = useState<string | null>(null);
 
     const fetchService = useCallback(async () => {
         if (!serviceId) return;
@@ -58,6 +62,14 @@ const ServiceDetailPage: React.FC = () => {
             toast('El servicio ya se encuentra en su último estado.', { icon: 'ℹ️' });
             return;
         }
+        
+        if (isUpdating) return;
+
+        // Validar archivos antes de proceder
+        if (selectedFiles.length > 3) {
+            toast.error('Máximo 5 archivos permitidos.');
+            return;
+        }
 
         const nextStatus = service.flujoCompleto[currentIndex + 1];
 
@@ -65,9 +77,32 @@ const ServiceDetailPage: React.FC = () => {
         const toastId = toast.loading(`Avanzando estado a "${nextStatus}"...`);
 
         try {
-            await updateServiceStatus(serviceId, nextStatus, notes);
+            let attachments: Attachment[] = [];
+            if (selectedFiles.length > 0) {
+                toast.loading('Subiendo documentos...', { id: toastId });
+                const timestamp = Date.now();
+                // Subir archivos secuencialmente o en paralelo
+                const uploadPromises = selectedFiles.map(async (file) => {
+                    const storagePath = `service-attachments/${serviceId}/${timestamp}_${file.name}`;
+                    const storageRef = ref(storage, storagePath);
+                    await uploadBytes(storageRef, file);
+                    const url = await getDownloadURL(storageRef);
+                    return {
+                        name: file.name,
+                        url,
+                        type: file.type,
+                        size: file.size,
+                        path: storagePath
+                    } as Attachment;
+                });
+                 attachments = await Promise.all(uploadPromises);
+            }
+
+            await updateServiceStatus(serviceId, nextStatus, notes, attachments);
             toast.success('Estado actualizado con éxito.', { id: toastId });
             setNotes('');
+            setSelectedFiles([]);
+            setFileError(null);
             fetchService(); // Recargar los datos del servicio
         } catch (err) {
             toast.error('No se pudo actualizar el estado.', { id: toastId });
@@ -136,6 +171,55 @@ const ServiceDetailPage: React.FC = () => {
                                         className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
                                         placeholder="Añade un comentario sobre este cambio de estado..."
                                     />
+                                </div>
+
+                                <div className="mt-4">
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Adjuntar Documentos (Opcional)</label>
+                                    <input
+                                        type="file"
+                                        multiple
+                                        accept="image/png, image/jpeg, application/pdf"
+                                        onChange={(e) => {
+                                            const files = Array.from(e.target.files || []);
+                                            
+                                            // Validaciones
+                                            if (selectedFiles.length + files.length > 3) {
+                                                setFileError('Máximo 3 documentos por actualización.');
+                                                return;
+                                            }
+                                            
+                                            for (const f of files) {
+                                                if (f.size > 1 * 1024 * 1024) {
+                                                     setFileError(`El archivo ${f.name} pesa más de 1MB.`);
+                                                     return;
+                                                }
+                                            }
+                                            
+                                            setFileError(null);
+                                            setSelectedFiles(prev => [...prev, ...files]);
+                                            // Reset input
+                                            e.target.value = '';
+                                        }}
+                                        className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                                    />
+                                    {fileError && <p className="text-red-500 text-xs mt-1">{fileError}</p>}
+                                    <div className="mt-2 text-xs text-gray-500">Máx 3 archivos (PDF, JPG, PNG) - 1MB cada uno.</div>
+
+                                    {selectedFiles.length > 0 && (
+                                        <ul className="mt-2 space-y-1">
+                                            {selectedFiles.map((file, idx) => (
+                                                <li key={idx} className="flex justify-between items-center text-sm bg-gray-50 p-2 rounded">
+                                                    <span className="truncate max-w-[200px]">{file.name} ({(file.size / 1024 / 1024).toFixed(2)} MB)</span>
+                                                    <button 
+                                                        onClick={() => setSelectedFiles(prev => prev.filter((_, i) => i !== idx))}
+                                                        className="text-red-500 hover:text-red-700"
+                                                    >
+                                                        &times;
+                                                    </button>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    )}
                                 </div>
                                 <button
                                     onClick={handleAdvanceState}

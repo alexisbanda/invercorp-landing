@@ -309,6 +309,7 @@ const AdminProgrammedSavingDetailPage: React.FC = () => {
                                     <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Monto</th>
                                     <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
                                     <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nota Cliente</th>
+                                    <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nota Admin</th>
                                     <th scope="col" className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
                                 </tr>
                             </thead>
@@ -318,7 +319,8 @@ const AdminProgrammedSavingDetailPage: React.FC = () => {
                                         <td className="px-4 py-4 whitespace-nowrap">{formatDate(deposit.fechaDeposito)}</td>
                                         <td className="px-4 py-4 whitespace-nowrap font-medium">${deposit.montoDeposito.toFixed(2)}</td>
                                         <td className="px-4 py-4 whitespace-nowrap"><DepositStatusBadge status={deposit.estadoDeposito} /></td>
-                                        <td className="px-4 py-4 text-gray-600">{deposit.notaCliente || 'N/A'}</td>
+                                        <td className="px-4 py-4 text-gray-600">{deposit.notaCliente || '-'}</td>
+                                        <td className="px-4 py-4 text-gray-600">{deposit.notaAdmin || '-'}</td>
                                         <td className="px-4 py-4 whitespace-nowrap text-center">
                                             <div className="flex items-center justify-center gap-2">
                                                 {deposit.estadoDeposito === DepositStatus.EN_VERIFICACION && (

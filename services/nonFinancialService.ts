@@ -21,6 +21,15 @@ export interface StatusHistoryEntry {
     date: Timestamp;
     notes?: string;
     updatedBy: string;
+    attachments?: Attachment[];
+}
+
+export interface Attachment {
+    name: string;
+    url: string;
+    type: string;
+    size: number;
+    path: string;
 }
 
 // Define la estructura principal de un documento de servicio no financiero
@@ -241,7 +250,7 @@ export const getServiceById = async (serviceId: string): Promise<NonFinancialSer
  * @param newStatus El nuevo estado (sub-estado) a establecer.
  * @param notes Notas opcionales sobre el cambio de estado.
  */
-export const updateServiceStatus = async (serviceId: string, newStatus: string, notes?: string): Promise<void> => {
+export const updateServiceStatus = async (serviceId: string, newStatus: string, notes?: string, attachments?: Attachment[]): Promise<void> => {
     const currentUser = auth.currentUser;
     if (!currentUser) {
         throw new Error('No hay un administrador autenticado.');
@@ -260,6 +269,7 @@ export const updateServiceStatus = async (serviceId: string, newStatus: string, 
         date: now,
         updatedBy: currentUser.email || 'admin',
         notes: notes || `Estado actualizado a: ${newStatus}`,
+        attachments: attachments || []
     };
 
     // Determinar el estado general
@@ -309,3 +319,4 @@ export const getServicesByAdvisorId = async (advisorId: string): Promise<NonFina
         ...doc.data(),
     } as NonFinancialService));
 };
+
