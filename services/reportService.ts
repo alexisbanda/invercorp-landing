@@ -1,4 +1,10 @@
 import { getAllLoans } from './loanService';
+import { getAllProgrammedSavings } from './savingsService';
+import { getAllServices } from './nonFinancialService';
+import { getAllAdvisors } from './advisorService';
+import { ProgrammedSavingStatus } from '../types';
+
+// --- OLD LOAN REPORTS (KEPT FOR REFERENCE OR LEGACY USE) ---
 
 export interface PortfolioOverview {
     totalLoans: number;
@@ -12,6 +18,7 @@ export interface PortfolioOverview {
 export const getPortfolioOverview = async (): Promise<PortfolioOverview> => {
     const loans = await getAllLoans();
     const totalLoans = loans.length;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const activeLoans = loans.filter(l => l.status !== ('' as any) && l.status !== ("COMPLETADO" as any)).length;
 
     let totalOutstanding = 0;
@@ -136,4 +143,158 @@ export const getPaymentActivity = async (daysRange = 30): Promise<PaymentActivit
     const avgHours = resolutionTimes.length ? parseFloat((resolutionTimes.reduce((a, b) => a + b, 0) / resolutionTimes.length).toFixed(2)) : null;
 
     return { reportedCount, approvedCount, rejectedCount, averageResolutionHours: avgHours };
+};
+
+// --- NEW REPORTS FOR SAVINGS AND SERVICES ---
+
+export interface DashboardKPIs {
+    savings: {
+        totalActivePlans: number;
+        totalCapitalSaved: number;
+        averageSavingsPerPlan: number;
+    };
+    services: {
+        totalActive: number;
+        totalCompletedThisMonth: number;
+        topServiceType: string;
+    };
+}
+
+export const getDashboardKPIs = async (): Promise<DashboardKPIs> => {
+    const [savings, services] = await Promise.all([
+        getAllProgrammedSavings(),
+        getAllServices()
+    ]);
+
+    // Savings KPIs
+    const activeSavings = savings.filter(s => s.estadoPlan === ProgrammedSavingStatus.ACTIVO);
+    const totalActivePlans = activeSavings.length;
+    const totalCapitalSaved = activeSavings.reduce((sum, s) => sum + (s.saldoActual || 0), 0);
+    const averageSavingsPerPlan = totalActivePlans > 0 ? totalCapitalSaved / totalActivePlans : 0;
+
+    // Services KPIs
+    const now = new Date();
+    const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    
+    const activeServices = services.filter(s => s.estadoGeneral === 'EN_EJECUCION' || s.estadoGeneral === 'SOLICITADO');
+    const completedServices = services.filter(s => {
+        if (s.estadoGeneral !== 'FINALIZADO') return false;
+        // Check if completed this month
+        // We look for the last status history entry
+        const lastEntry = s.historialDeEstados[s.historialDeEstados.length - 1];
+        if (lastEntry && lastEntry.date) {
+             const d = lastEntry.date.toDate();
+             return d >= firstDayOfMonth;
+        }
+        return false;
+    });
+
+    // Find top service type
+    const serviceTypesCount: Record<string, number> = {};
+    services.forEach(s => {
+        const type = s.tipoDeServicio;
+        serviceTypesCount[type] = (serviceTypesCount[type] || 0) + 1;
+    });
+    
+    let topServiceType = 'N/A';
+    let maxCount = 0;
+    for (const [type, count] of Object.entries(serviceTypesCount)) {
+        if (count > maxCount) {
+            maxCount = count;
+            topServiceType = type;
+        }
+    }
+
+    return {
+        savings: {
+            totalActivePlans,
+            totalCapitalSaved,
+            averageSavingsPerPlan
+        },
+        services: {
+            totalActive: activeServices.length,
+            totalCompletedThisMonth: completedServices.length,
+            topServiceType
+        }
+    };
+};
+
+export interface AdvisorStats {
+    advisorId: string;
+    advisorName: string;
+    activeSavingsCount: number;
+    activeServicesCount: number;
+    totalCapitalManaged: number;
+}
+
+export const getAdvisorStats = async (): Promise<AdvisorStats[]> => {
+    const [savings, services, advisors] = await Promise.all([
+        getAllProgrammedSavings(),
+        getAllServices(),
+        getAllAdvisors()
+    ]);
+
+    const statsMap: Record<string, AdvisorStats> = {};
+
+    // Initialize map with all advisors
+    advisors.forEach(ad => {
+        statsMap[ad.id] = {
+            advisorId: ad.id,
+            advisorName: ad.nombre,
+            activeSavingsCount: 0,
+            activeServicesCount: 0,
+            totalCapitalManaged: 0
+        };
+    });
+
+    // Aggregate Savings
+    savings.forEach(s => {
+        if (s.estadoPlan === ProgrammedSavingStatus.ACTIVO && s.advisorId && statsMap[s.advisorId]) {
+            statsMap[s.advisorId].activeSavingsCount++;
+            statsMap[s.advisorId].totalCapitalManaged += (s.saldoActual || 0);
+        }
+    });
+
+    // Aggregate Services
+    services.forEach(s => {
+        if ((s.estadoGeneral === 'EN_EJECUCION' || s.estadoGeneral === 'SOLICITADO') && s.advisorId && statsMap[s.advisorId]) {
+            statsMap[s.advisorId].activeServicesCount++;
+        }
+    });
+
+    return Object.values(statsMap);
+};
+
+export interface StatusDistribution {
+    status: string;
+    count: number;
+}
+
+export const getServiceStatsByStatus = async (): Promise<StatusDistribution[]> => {
+    const services = await getAllServices();
+    const counts: Record<string, number> = {};
+
+    services.forEach(s => {
+        // Group by 'estadoActual' which is the granular step
+        const status = s.estadoActual || 'Desconocido';
+        counts[status] = (counts[status] || 0) + 1;
+    });
+
+    return Object.entries(counts)
+        .map(([status, count]) => ({ status, count }))
+        .sort((a, b) => b.count - a.count);
+};
+
+export const getSavingsStatsByStatus = async (): Promise<StatusDistribution[]> => {
+    const savings = await getAllProgrammedSavings();
+    const counts: Record<string, number> = {};
+
+    savings.forEach(s => {
+        const status = s.estadoPlan;
+        counts[status] = (counts[status] || 0) + 1;
+    });
+
+    return Object.entries(counts)
+        .map(([status, count]) => ({ status, count }))
+        .sort((a, b) => b.count - a.count);
 };

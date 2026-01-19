@@ -22,12 +22,19 @@ import { AdminProtectedRoute } from './components/AdminProtectedRoute';
 import { ReportsPage } from './components/admin/ReportsPage';
 import { LoanManagementPage } from './components/admin/LoanManagementPage';
 import { LoanInstallmentsPage } from './components/admin/LoanInstallmentsPage.tsx';
-import { DashboardReports } from './components/admin/DashboardReports';
+
+// --- New Admin Report Components ---
+import { DashboardPage as AdminDashboardPage } from './components/admin/reports/DashboardPage';
+import { AdvisorReportPage } from './components/admin/reports/AdvisorReportPage';
+import { ServicesReportPage } from './components/admin/reports/ServicesReportPage';
+import { SavingsReportPage } from './components/admin/reports/SavingsReportPage';
+
+// Old reports - kept if needed for reference, but dashboard replaced
 import { PendingInstallmentsReportPage } from './components/admin/reports/PendingInstallmentsReportPage';
-// removed unused specific report components; replaced by new aggregated report pages
 import { PortfolioOverviewPage } from './components/admin/reports/PortfolioOverviewPage';
 import { DelinquencyAgingPage } from './components/admin/reports/DelinquencyAgingPage';
 import { PaymentActivityPage } from './components/admin/reports/PaymentActivityPage';
+
 import SavingsManagementPage from './components/admin/SavingsManagementPage';
 import AdminNewProgrammedSavingForm from './components/admin/AdminNewProgrammedSavingForm';
 import AdminProgrammedSavingDetailPage from './components/admin/AdminProgrammedSavingDetailPage';
@@ -73,20 +80,32 @@ function App() {
                 >
                     <Route path="/portal/admin" element={<Navigate to="/portal/admin/reports/dashboard" replace />} />
                     <Route path="/portal/admin/reports" element={<ReportsPage />} />
-                    <Route path="/portal/admin/management" element={<LoanManagementPage />} />
-                    <Route path="/portal/admin/management/:loanId" element={<LoanInstallmentsPage />} />
-                    <Route path="/portal/admin/reports/dashboard" element={<DashboardReports />} />
+                    
+                    {/* Reporting Routes */}
+                    <Route path="/portal/admin/reports/dashboard" element={<AdminDashboardPage />} />
+                    <Route path="/portal/admin/reports/advisors" element={<AdvisorReportPage />} />
+                    <Route path="/portal/admin/reports/services" element={<ServicesReportPage />} />
+                    <Route path="/portal/admin/reports/savings" element={<SavingsReportPage />} />
+                    
+                    {/* Legacy Reports or Specific Financial Reports */}
                     <Route path="/portal/admin/reports/pending-installments" element={<PendingInstallmentsReportPage />} />
                     <Route path="/portal/admin/reports/loan-portfolio" element={<PortfolioOverviewPage />} />
                     <Route path="/portal/admin/reports/delinquency" element={<DelinquencyAgingPage />} />
                     <Route path="/portal/admin/reports/payment-activity" element={<PaymentActivityPage />} />
+
+                    {/* Management Routes */}
+                    <Route path="/portal/admin/management" element={<LoanManagementPage />} />
+                    <Route path="/portal/admin/management/:loanId" element={<LoanInstallmentsPage />} />
                     <Route path="/portal/admin/pending-deposits" element={<PendingDepositsPage />} />
+                    
                     {/* Rutas para Ahorros */}
                     <Route path="/portal/admin/savings" element={<SavingsManagementPage />} />
                     <Route path="/portal/admin/savings/:clienteId/:numeroCartola" element={<AdminProgrammedSavingDetailPage />} />
                     <Route path="/portal/admin/savings/new" element={<AdminNewProgrammedSavingForm />} />
+                    
                     {/* Nuevas rutas para Clientes y Préstamos */}
                     <Route path="/portal/admin/clients/new" element={<NewClientPage />} />
+                    <Route path="/portal/admin/clients/new-loan" element={<AdminNewLoanForm />} />
                     <Route path="/portal/admin/loans/new" element={<AdminNewLoanForm />} />
                     <Route path="/portal/admin/loans/:loanId" element={<LoanInstallmentsPage />} />
                     <Route path="/portal/admin/clients" element={<ClientManagementPage />} />

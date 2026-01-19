@@ -1,9 +1,6 @@
-// src/components/admin/ReportsPage.tsx
-
 import React from 'react';
 import { Link } from 'react-router-dom';
 
-// Un componente simple para las tarjetas de reporte
 const ReportCard: React.FC<{ to: string; icon: string; title: string; description: string }> = ({ to, icon, title, description }) => (
     <Link
         to={to}
@@ -28,34 +25,37 @@ export const ReportsPage: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 px-4 sm:px-0">
                 <ReportCard
                     to="/portal/admin/reports/dashboard"
-                    icon="fa-chart-pie"
-                    title="Dashboard de KPIs"
-                    description="Visualizar gráficos y métricas clave."
+                    icon="fa-chart-line"
+                    title="Dashboard General"
+                    description="KPIs de Ahorros, Servicios y métricas clave."
                 />
                 <ReportCard
-                    to="/portal/admin/reports/pending-installments"
-                    icon="fa-file-invoice-dollar"
-                    title="Reporte de Cuotas Pendientes"
-                    description="Ver y filtrar todas las cuotas por cobrar."
+                    to="/portal/admin/reports/savings"
+                    icon="fa-piggy-bank"
+                    title="Reporte de Ahorros"
+                    description="Detalle de planes de ahorro programado y estados."
                 />
+                <ReportCard
+                    to="/portal/admin/reports/services"
+                    icon="fa-briefcase"
+                    title="Reporte de Servicios"
+                    description="Seguimiento de servicios no financieros."
+                />
+                <ReportCard
+                    to="/portal/admin/reports/advisors"
+                    icon="fa-users-cog"
+                    title="Reporte de Asesores"
+                    description="Rendimiento y gestión por asesor."
+                />
+                {/* Legacy/Secondary Reports could go here if needed, or be removed */}
+                {/* 
                 <ReportCard
                     to="/portal/admin/reports/loan-portfolio"
-                    icon="fa-briefcase"
-                    title="Reporte de Cartera de Préstamos"
-                    description="Resumen de préstamos activos y su estado."
+                    icon="fa-file-invoice-dollar"
+                    title="Cartera de Préstamos (Legacy)"
+                    description="Reporte histórico de préstamos."
                 />
-                <ReportCard
-                    to="/portal/admin/reports/delinquency"
-                    icon="fa-triangle-exclamation"
-                    title="Reporte de Morosidad"
-                    description="Analizar préstamos y cuotas vencidas."
-                />
-                <ReportCard
-                    to="/portal/admin/reports/payment-activity"
-                    icon="fa-wallet"
-                    title="Actividad de Pagos"
-                    description="Ver reportes, aprobaciones y rechazos de pagos."
-                />
+                */}
             </div>
         </div>
     );
