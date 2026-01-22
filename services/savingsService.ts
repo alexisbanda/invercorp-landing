@@ -472,3 +472,23 @@ export const deleteProgrammedSaving = async (userId: string, numeroCartola: numb
     // 3. Eliminar el documento principal
     await deleteDoc(planRef);
 };
+
+/**
+ * Agrega un recibo a un retiro.
+ */
+export const addWithdrawalReceipt = async (userId: string, numeroCartola: number, withdrawalId: string, receiptData: any): Promise<void> => {
+    const withdrawalRef = doc(db, `users/${userId}/ahorrosProgramados/${numeroCartola}/retiros`, withdrawalId);
+    await updateDoc(withdrawalRef, {
+        receiptData: receiptData
+    });
+};
+
+/**
+ * Anula un recibo de retiro.
+ */
+export const voidWithdrawalReceipt = async (userId: string, numeroCartola: number, withdrawalId: string, receiptData: any): Promise<void> => {
+    const withdrawalRef = doc(db, `users/${userId}/ahorrosProgramados/${numeroCartola}/retiros`, withdrawalId);
+    await updateDoc(withdrawalRef, {
+        receiptData: receiptData
+    });
+};

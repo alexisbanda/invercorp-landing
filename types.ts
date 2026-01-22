@@ -106,6 +106,7 @@ export interface Deposit {
     fechaVerificacion?: Date; // timestamp
     adminVerificadorId?: string;
     notaAdmin?: string;
+    receiptData?: any; // ServiceReceipt
 }
 
 export interface Withdrawal {
@@ -123,6 +124,7 @@ export interface Withdrawal {
     numeroCuenta?: string;
     nombreTitular?: string;
     cedulaTitular?: string;
+    receiptData?: any; // ServiceReceipt - using any to avoid circular dependency if ServiceReceipt is in another file, or better Move ServiceReceipt to types.ts?
 }
 
 export interface ProgrammedSaving {

@@ -19,6 +19,8 @@ interface GenerateReceiptModalProps {
     initialData: ReceiptInitialData;
     existingReceipts?: ServiceReceipt[];
     onReceiptGenerated?: () => void;
+    onSave?: (amount: number, concept: string) => Promise<void>;
+    onVoid?: (receiptId: string, reason: string) => Promise<void>;
 }
 
 export const GenerateReceiptModal: React.FC<GenerateReceiptModalProps> = ({
@@ -26,7 +28,9 @@ export const GenerateReceiptModal: React.FC<GenerateReceiptModalProps> = ({
     onClose,
     initialData,
     existingReceipts = [],
-    onReceiptGenerated
+    onReceiptGenerated,
+    onSave,
+    onVoid
 }) => {
     const [amount, setAmount] = useState<string>('');
     const [concept, setConcept] = useState<string>('');
@@ -180,26 +184,13 @@ export const GenerateReceiptModal: React.FC<GenerateReceiptModalProps> = ({
 
         setIsProcessing(true);
         try {
-            await addReceipt(initialData.serviceId, parseFloat(amount), concept);
+            if (onSave) {
+                await onSave(parseFloat(amount), concept);
+            } else {
+                await addReceipt(initialData.serviceId, parseFloat(amount), concept);
+            }
             toast.success('Recibo generado y guardado correctamente');
             if (onReceiptGenerated) onReceiptGenerated();
-            
-            // Wait a bit for state to update or just proceed to print?
-            // Since we rely on parent refreshing prop, we might need to wait used effect or just print current state
-            // But we want the receipt NUMBER to be the real one.
-            // Simplified: The parent will refresh, pass new props, triggers useEffect, which sets activeReceipt.
-            // We can auto-print in an effect if we wanted, but let's keep it manual for now or trigger print immediately?
-            // Better UX: Show Success, updating UI to "Reprint" mode. Then user clicks Reprint.
-            // OR: We can print immediately using the returned receipt data?
-             // Let's stick to: Save -> Notify -> Parent Re-renders -> UI Updates -> User clicks "Imprimir" (or we auto click it)
-             // For smoothest flow: Save -> Updates UI to "Reprint" -> User clicks "Imprimir"
-             
-             // However, to mimic "Generate & Print", we might want to just print.
-             // But we don't have the new Receipt Number yet unless we use the return value.
-            
-            // NOTE: For now, we will just update state and let user click Print or auto-trigger could be complex with async props.
-            // Let's rely on user clicking "Imprimir" which is now "Reimprimir".
-            
         } catch (error) {
             console.error(error);
             toast.error('Error al guardar el recibo');
@@ -220,7 +211,11 @@ export const GenerateReceiptModal: React.FC<GenerateReceiptModalProps> = ({
 
         setIsProcessing(true);
         try {
-            await voidReceipt(initialData.serviceId, activeReceipt.id, reason);
+            if (onVoid) {
+                await onVoid(activeReceipt.id, reason);
+            } else {
+                await voidReceipt(initialData.serviceId, activeReceipt.id, reason);
+            }
             toast.success('Recibo anulado correctamente');
             if (onReceiptGenerated) onReceiptGenerated();
         } catch (error) {

@@ -5,9 +5,10 @@ import { useParams, Link } from 'react-router-dom';
 import toast, { Toaster } from 'react-hot-toast';
 import { useAuth } from '../../contexts/AuthContext';
 import { ProgrammedSaving, Deposit, UserProfile, DepositStatus } from '../../types';
-import { getProgrammedSavingById, getDepositsForSavingPlan, confirmDeposit, rejectDeposit, addManualDepositByAdmin, deleteDeposit } from '../../services/savingsService'; // Importar la nueva función
+import { getProgrammedSavingById, getDepositsForSavingPlan, confirmDeposit, rejectDeposit, addManualDepositByAdmin, deleteDeposit, addWithdrawalReceipt, voidWithdrawalReceipt } from '../../services/savingsService'; // Importar la nueva función
 import { getUserProfile } from '../../services/userService';
 import { GenerateReceiptModal } from './GenerateReceiptModal';
+import { Timestamp } from 'firebase/firestore';
 
 // Helper para formatear fechas
 const formatDate = (date: any): string => {
@@ -98,6 +99,7 @@ const AdminProgrammedSavingDetailPage: React.FC = () => {
     // Estado para recibos
     const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
     const [receiptInitialData, setReceiptInitialData] = useState<any>(null);
+    const [receiptContext, setReceiptContext] = useState<{ type: 'deposit' | 'withdrawal', id: string } | null>(null);
 
     const numeroCartola = numeroCartolaStr ? parseInt(numeroCartolaStr, 10) : NaN;
 
@@ -229,9 +231,87 @@ const AdminProgrammedSavingDetailPage: React.FC = () => {
             clientName: client?.name || '',
             clientId: client?.cedula || 'N/A',
             receiptNumber: `DEP-${deposit.depositId.substring(0, 6)}`.toUpperCase(),
-            date: formatDate(deposit.fechaDeposito)
+            date: formatDate(deposit.fechaDeposito),
+            serviceId: 'dummy'
         });
+        setReceiptContext({ type: 'deposit', id: deposit.depositId });
         setIsReceiptModalOpen(true);
+    };
+
+    const handleOpenWithdrawalReceipt = (withdrawal: any) => {
+        if (!plan) return;
+        setReceiptInitialData({
+            concept: `Retiro Ahorro Programado - Plan ${plan.numeroCartola}`,
+            amount: withdrawal.montoRetiro,
+            clientName: client?.name || '',
+            clientId: client?.cedula || 'N/A',
+            receiptNumber: `RET-${withdrawal.withdrawalId.substring(0, 6)}`.toUpperCase(),
+            date: formatDate(withdrawal.fechaProcesado || withdrawal.fechaSolicitud),
+            serviceId: 'dummy'
+        });
+        setReceiptContext({ type: 'withdrawal', id: withdrawal.withdrawalId });
+        setIsReceiptModalOpen(true);
+    };
+
+    const handleSaveReceipt = async (amount: number, concept: string) => {
+        if (!currentUser || !clienteId || isNaN(numeroCartola) || !receiptContext) return;
+        
+        const currentUserEmail = currentUser.email || 'admin';
+        const receiptId = crypto.randomUUID();
+        const receiptNumber = receiptInitialData.receiptNumber;
+
+        const newReceipt = {
+            id: receiptId,
+            number: receiptNumber,
+            amount,
+            concept,
+            date: Timestamp.now(),
+            issuedBy: currentUserEmail,
+            status: 'valid'
+        };
+
+        if (receiptContext.type === 'withdrawal') {
+            // @ts-ignore
+             await addWithdrawalReceipt(clienteId, numeroCartola, receiptContext.id, newReceipt);
+        } else {
+             console.warn("Saving deposit receipt via custom handler not fully implemented yet");
+        }
+    };
+
+    const handleVoidReceipt = async (receiptId: string, reason: string) => {
+        if (!currentUser || !clienteId || isNaN(numeroCartola) || !receiptContext) return;
+         
+         const currentUserEmail = currentUser.email || 'admin';
+
+         let currentReceiptData;
+         if (receiptContext.type === 'withdrawal') {
+             const withdrawal = withdrawals.find(w => w.withdrawalId === receiptContext.id);
+             currentReceiptData = withdrawal?.receiptData;
+         }
+
+         if (!currentReceiptData) return;
+
+         const voidedReceipt = {
+             ...currentReceiptData,
+             status: 'void',
+             voidReason: reason,
+             voidedBy: currentUserEmail,
+             voidDate: Timestamp.now()
+         };
+
+         if (receiptContext.type === 'withdrawal') {
+            // @ts-ignore
+             await voidWithdrawalReceipt(clienteId, numeroCartola, receiptContext.id, voidedReceipt);
+         }
+    };
+
+    const getExistingReceipts = () => {
+        if (!receiptContext) return [];
+        if (receiptContext.type === 'withdrawal') {
+            const w = withdrawals.find(x => x.withdrawalId === receiptContext.id);
+            return w?.receiptData ? [w.receiptData] : [];
+        }
+        return []; 
     };
 
     if (loading) return <div className="p-8 text-center">Cargando detalles del plan...</div>;
@@ -354,6 +434,7 @@ const AdminProgrammedSavingDetailPage: React.FC = () => {
                                     <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Monto</th>
                                     <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
                                     <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nota Admin</th>
+                                    <th scope="col" className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
                                 </tr>
                             </thead>
                             <tbody className="bg-white divide-y divide-gray-200 text-sm">
@@ -363,6 +444,16 @@ const AdminProgrammedSavingDetailPage: React.FC = () => {
                                         <td className="px-4 py-4 whitespace-nowrap font-medium">${withdrawal.montoRetiro.toFixed(2)}</td>
                                         <td className="px-4 py-4 whitespace-nowrap">{withdrawal.estadoRetiro}</td>
                                         <td className="px-4 py-4 text-gray-600">{withdrawal.notaAdmin || 'N/A'}</td>
+                                        <td className="px-4 py-4 whitespace-nowrap text-center">
+                                            {withdrawal.estadoRetiro === 'Procesado' && (
+                                                <button 
+                                                    onClick={() => handleOpenWithdrawalReceipt(withdrawal)} 
+                                                    className="bg-gray-800 hover:bg-gray-900 text-white font-semibold py-1 px-2 rounded-md text-xs transition-colors"
+                                                >
+                                                    Recibo
+                                                </button>
+                                            )}
+                                        </td>
                                     </tr>
                                 ))}
                             </tbody>
@@ -455,6 +546,13 @@ const AdminProgrammedSavingDetailPage: React.FC = () => {
                     isOpen={isReceiptModalOpen}
                     onClose={() => setIsReceiptModalOpen(false)}
                     initialData={receiptInitialData}
+                    existingReceipts={getExistingReceipts()}
+                    onSave={receiptContext?.type === 'withdrawal' ? handleSaveReceipt : undefined}
+                    onVoid={receiptContext?.type === 'withdrawal' ? (id, reason) => handleVoidReceipt(id, reason) : undefined}
+                    onReceiptGenerated={() => {
+                        // setIsReceiptModalOpen(false); 
+                        fetchData();
+                    }}
                 />
             )}
         </div>
