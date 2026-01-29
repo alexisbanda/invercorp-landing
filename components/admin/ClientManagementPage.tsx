@@ -5,9 +5,11 @@ import { getAllLoans } from '../../services/loanService';
 import { getAllProgrammedSavings } from '../../services/savingsService';
 import EditClientModal from './EditClientModal';
 import { Link } from 'react-router-dom';
-import { Loan, ProgrammedSaving } from '../../types';
+import { Loan, ProgrammedSaving, UserRole } from '../../types';
+import { useAuth } from '../../contexts/AuthContext';
 
 const ClientManagementPage: React.FC = () => {
+  const { userProfile } = useAuth();
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -20,8 +22,11 @@ const ClientManagementPage: React.FC = () => {
   const fetchAllData = async () => {
     try {
       setLoading(true);
+      
+      const advisorId = userProfile?.role === UserRole.ADVISOR ? userProfile.advisorCollectionId : undefined;
+
       const [allClients, allLoans, allSavings] = await Promise.all([
-        getAllClients(),
+        getAllClients(advisorId),
         getAllLoans(),
         getAllProgrammedSavings(),
       ]);

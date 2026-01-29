@@ -60,7 +60,9 @@ const NewServiceForm: React.FC = () => {
     useEffect(() => {
         const fetchClients = async () => {
             try {
-                const clientList = await getAllClients();
+                // Si es asesor, filtrar sus clientes
+                const advisorId = isAdvisor && userProfile?.advisorCollectionId ? userProfile.advisorCollectionId : undefined;
+                const clientList = await getAllClients(advisorId);
                 setClients(clientList);
             } catch (err) {
                 toast.error('Error al cargar la lista de clientes.');

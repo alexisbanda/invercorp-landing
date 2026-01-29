@@ -5,7 +5,8 @@ import toast, { Toaster } from 'react-hot-toast';
 import { createLoan } from '../../services/loanService'; // Assuming createLoan can handle termValue and paymentFrequency
 import { getAllClients, getUserProfile } from '../../services/userService';
 import { getAllAdvisors } from '../../services/advisorService';
-import { Advisor, UserProfile } from '../../types';
+import { Advisor, UserProfile, UserRole } from '../../types';
+import { useAuth } from '../../contexts/AuthContext';
 
 // Hook para parsear query params de la URL
 const useQuery = () => {
@@ -13,6 +14,7 @@ const useQuery = () => {
 };
 
 const AdminNewLoanForm: React.FC = () => {
+    const { userProfile } = useAuth();
     const query = useQuery();
     const navigate = useNavigate();
     const clientIdFromUrl = query.get('clientId');
@@ -25,6 +27,9 @@ const AdminNewLoanForm: React.FC = () => {
     const [isLoadingClientData, setIsLoadingClientData] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    
+    // Check role
+    const isAdvisor = userProfile?.role === UserRole.ADVISOR;
 
     // Estado del formulario ajustado para la nueva lógica de plazo
     const [formData, setFormData] = useState({
@@ -35,6 +40,13 @@ const AdminNewLoanForm: React.FC = () => {
         disbursementDate: new Date().toISOString().split('T')[0], // Fecha de desembolso, formato YYYY-MM-DD
         advisorId: '',
     });
+    
+    // Auto-select advisor if user is advisor
+    useEffect(() => {
+        if (isAdvisor && userProfile?.advisorCollectionId) {
+             setFormData(prev => ({ ...prev, advisorId: userProfile.advisorCollectionId! }));
+        }
+    }, [isAdvisor, userProfile]);
 
     // Estado derivado para la unidad de plazo a mostrar en la UI
     const getTermUnit = (frequency: string) => {
@@ -56,7 +68,8 @@ const AdminNewLoanForm: React.FC = () => {
         const fetchClients = async () => {
             setIsLoadingClients(true);
             try {
-                const clients = await getAllClients();
+                const advisorId = isAdvisor && userProfile?.advisorCollectionId ? userProfile.advisorCollectionId : undefined;
+                const clients = await getAllClients(advisorId);
                 setAllClients(clients);
             } catch (err) {
                 console.error("Error fetching clients:", err);
@@ -237,7 +250,7 @@ const AdminNewLoanForm: React.FC = () => {
                         value={formData.advisorId}
                         onChange={handleChange}
                         className="mt-1 block w-full px-4 py-2 text-base border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 transition duration-150 ease-in-out"
-                        disabled={advisors.length === 0}
+                        disabled={advisors.length === 0 || isAdvisor} 
                     >
                         <option value="">-- Elige un asesor --</option>
                         {advisors.map(a => (

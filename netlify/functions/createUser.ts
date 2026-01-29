@@ -81,7 +81,7 @@ const handler: Handler = async (event: HandlerEvent) => {
     const auth = app!.auth(); // Aseguramos no null por la validación previa
     const db = app!.firestore();
 
-    const { email, password, name, phone, cedula, numeroCartola, comment } = requestBody;
+    const { email, password, name, phone, cedula, numeroCartola, comment, advisorCollectionId } = requestBody;
 
     // Validar datos mínimos de entrada
     if (!email || !password || !name || !cedula) {
@@ -127,6 +127,7 @@ const handler: Handler = async (event: HandlerEvent) => {
             numeroCartola: numeroCartola || '',
             comment: comment || '',
             role: 'client', // Forzamos el rol
+            advisorCollectionId: advisorCollectionId || null, // Guardamos el asesor si existe
             createdAt: admin.firestore.FieldValue.serverTimestamp()
         }, { merge: true });
         

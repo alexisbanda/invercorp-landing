@@ -52,6 +52,8 @@ export interface NewLoanFormData {
     termValue: number; // Valor del plazo (ej. 12 para meses, 24 para quincenas, 48 para semanas)
     paymentFrequency: 'Mensual' | 'Quincenal' | 'Semanal';
     disbursementDate: string; // Formato YYYY-MM-DD
+    advisorId?: string;
+    advisorName?: string;
 }
 
 /**
@@ -183,6 +185,8 @@ export const createLoan = async (data: NewLoanFormData): Promise<string> => {
         installments, // Guardamos como un array, igual que el importador
         termValue, // Guardar el valor del plazo (ej. 12 meses, 24 quincenas)
         paymentFrequency, // Guardar la frecuencia de pago
+        advisorId: data.advisorId,
+        advisorName: data.advisorName,
     };
 
     await setDoc(newLoanRef, newLoan);

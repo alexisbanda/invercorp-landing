@@ -5,7 +5,8 @@ import toast, { Toaster } from 'react-hot-toast';
 import { createProgrammedSaving } from '../../services/savingsService';
 import { getAllClients, getUserProfile } from '../../services/userService';
 import { getAllAdvisors } from '../../services/advisorService';
-import { UserProfile, Advisor } from '../../types';
+import { UserProfile, Advisor, UserRole } from '../../types';
+import { useAuth } from '../../contexts/AuthContext';
 
 
 // Hook para parsear query params de la URL
@@ -14,6 +15,7 @@ const useQuery = () => {
 };
 
 const AdminNewProgrammedSavingForm: React.FC = () => {
+    const { userProfile } = useAuth();
     const query = useQuery();
     const navigate = useNavigate();
     const clientIdFromUrl = query.get('clientId');
@@ -26,6 +28,8 @@ const AdminNewProgrammedSavingForm: React.FC = () => {
     const [isLoadingClientData, setIsLoadingClientData] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    
+    const isAdvisor = userProfile?.role === UserRole.ADVISOR;
 
     const [formData, setFormData] = useState({
         nombrePlan: '',
@@ -35,13 +39,20 @@ const AdminNewProgrammedSavingForm: React.FC = () => {
         fechaInicioPlan: new Date().toISOString().split('T')[0],
         advisorId: '',
     });
+    
+    useEffect(() => {
+        if (isAdvisor && userProfile?.advisorCollectionId) {
+            setFormData(prev => ({ ...prev, advisorId: userProfile.advisorCollectionId! }));
+        }
+    }, [isAdvisor, userProfile]);
 
     // Cargar lista de todos los clientes al montar el componente
     useEffect(() => {
         const fetchClients = async () => {
             setIsLoadingClients(true);
             try {
-                const clients = await getAllClients();
+                const advisorId = isAdvisor && userProfile?.advisorCollectionId ? userProfile.advisorCollectionId : undefined;
+                const clients = await getAllClients(advisorId);
                 setAllClients(clients);
             } catch (err) {
                 console.error("Error fetching clients:", err);
@@ -210,7 +221,7 @@ const AdminNewProgrammedSavingForm: React.FC = () => {
                         value={formData.advisorId}
                         onChange={handleChange}
                         className="mt-1 block w-full px-4 py-2 text-base border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 transition duration-150 ease-in-out"
-                        disabled={advisors.length === 0}
+                        disabled={advisors.length === 0 || isAdvisor}
                     >
                         <option value="">-- Elige un asesor --</option>
                         {advisors.map(a => (

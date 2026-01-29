@@ -1,11 +1,14 @@
 // src/components/admin/NewClientPage.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createClientProfile, NewClientData } from '../../services/clientService';
+import { getAllAdvisors } from '../../services/advisorService';
+import { Advisor, UserRole } from '../../types';
+import { useAuth } from '../../contexts/AuthContext';
 
 const NewClientPage: React.FC = () => {
     // --- MEJORA: Usar un solo objeto de estado para el formulario ---
-    const [formData, setFormData] = useState<NewClientData & { serviceType: 'saving' | 'loan' }>({
+    const [formData, setFormData] = useState<NewClientData & { serviceType: 'saving' | 'loan', advisorId?: string }>({
         name: '',
         email: '',
         password: '', // Campo de contraseña añadido
@@ -14,11 +17,37 @@ const NewClientPage: React.FC = () => {
         numeroCartola: '',
         comment: '',
         serviceType: 'saving',
+        advisorId: '',
     });
 
+    const [advisors, setAdvisors] = useState<Advisor[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const navigate = useNavigate();
+    const { userProfile } = useAuth();
+    const isAdvisor = userProfile?.role === UserRole.ADVISOR;
+
+    useEffect(() => {
+        const fetchAdvisors = async () => {
+            try {
+                const advisorsData = await getAllAdvisors();
+                setAdvisors(advisorsData);
+            } catch (err) {
+                console.error("Error fetching advisors:", err);
+            }
+        };
+        fetchAdvisors();
+    }, []);
+
+    // Set default advisor if the user is an advisor
+    useEffect(() => {
+        if (isAdvisor && userProfile?.advisorCollectionId) {
+            setFormData(prev => ({
+                ...prev,
+                advisorId: userProfile.advisorCollectionId
+            }));
+        }
+    }, [isAdvisor, userProfile]);
 
     // --- MEJORA: Un solo manejador para todos los inputs ---
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -34,10 +63,21 @@ const NewClientPage: React.FC = () => {
         setIsLoading(true);
         setError(null);
 
+        // Validation for Admin: Must select an advisor
+        if (!isAdvisor && !formData.advisorId) {
+            setError("Por favor, selecciona un asesor responsable para este cliente.");
+            setIsLoading(false);
+            return;
+        }
+
         try {
             // 1. Crear el usuario de autenticación y el perfil del cliente en Firestore
             // Se pasa el objeto de estado completo, que ya coincide con la interfaz NewClientData
-            const newClientId = await createClientProfile(formData);
+            // Nota: createClientProfile debe ser actualizado para aceptar advisorId
+            const newClientId = await createClientProfile({
+                ...formData,
+                advisorCollectionId: formData.advisorId
+            } as any); 
 
             console.log(`Perfil de cliente creado en Firestore con ID: ${newClientId}`);
 
@@ -151,6 +191,32 @@ const NewClientPage: React.FC = () => {
                             className="mt-1 block w-full px-4 py-2 text-base border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                             required
                         />
+                    </div>
+
+                    {/* Selector de Asesor */}
+                    <div>
+                        <label htmlFor="advisorId" className="block text-sm font-semibold text-gray-700 mb-2">
+                            Asesor Responsable
+                        </label>
+                        <select
+                            id="advisorId"
+                            name="advisorId"
+                            value={formData.advisorId}
+                            onChange={handleChange}
+                            className="mt-1 block w-full px-4 py-2 text-base border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:text-gray-500"
+                            required={!isAdvisor}
+                            disabled={isAdvisor || advisors.length === 0}
+                        >
+                            <option value="">-- Selecciona un asesor --</option>
+                            {advisors.map(a => (
+                                <option key={a.id} value={a.id}>
+                                    {a.nombre}
+                                </option>
+                            ))}
+                        </select>
+                        {advisors.length === 0 && !isAdvisor && (
+                            <p className="text-sm text-red-500 mt-1">No hay asesores disponibles. Crea uno primero.</p>
+                        )}
                     </div>
 
                     <div>

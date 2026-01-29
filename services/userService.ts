@@ -33,10 +33,17 @@ export const getUserProfile = async (uid: string): Promise<UserProfile | null> =
  * Obtiene todos los perfiles de usuario con el rol de 'client'.
  * @returns Una lista de todos los perfiles de cliente, ordenados alfabéticamente.
  */
-export const getAllClients = async (): Promise<UserProfile[]> => {
+export const getAllClients = async (advisorId?: string): Promise<UserProfile[]> => {
     const usersCollectionRef = collection(db, 'users');
-    // Filtrar solo por rol 'client' para el selector
-    const q = query(usersCollectionRef, where('role', '==', 'client'));
+    let q;
+    
+    // Filtrar solo por rol 'client' y opcionalmente por advisorId
+    if (advisorId) {
+        q = query(usersCollectionRef, where('role', '==', 'client'), where("advisorCollectionId", "==", advisorId));
+    } else {
+        q = query(usersCollectionRef, where('role', '==', 'client'));
+    }
+
     const querySnapshot = await getDocs(q);
 
     const clients = querySnapshot.docs.map(doc => {
@@ -47,6 +54,7 @@ export const getAllClients = async (): Promise<UserProfile[]> => {
             name: data.name,
             cedula: data.cedula,
             role: data.role,
+            advisorCollectionId: data.advisorCollectionId, // Ensure this is returned
         } as UserProfile;
     });
     return clients.sort((a, b) => a.name.localeCompare(b.name)); // Ordenar para mejor UX

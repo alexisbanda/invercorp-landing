@@ -1,6 +1,8 @@
 // src/components/admin/EditClientModal.tsx
 import React, { useState, useEffect } from 'react';
 import { Client, updateClient } from '../../services/clientService';
+import { getAllAdvisors } from '../../services/advisorService';
+import { Advisor } from '../../types';
 
 interface EditClientModalProps {
   client: Client | null;
@@ -10,6 +12,19 @@ interface EditClientModalProps {
 
 const EditClientModal: React.FC<EditClientModalProps> = ({ client, onClose, onClientUpdated }) => {
   const [formData, setFormData] = useState<Partial<Client>>({});
+  const [advisors, setAdvisors] = useState<Advisor[]>([]);
+
+  useEffect(() => {
+    const fetchAdvisors = async () => {
+      try {
+        const advisorsData = await getAllAdvisors();
+        setAdvisors(advisorsData);
+      } catch (err) {
+        console.error("Error fetching advisors:", err);
+      }
+    };
+    fetchAdvisors();
+  }, []);
 
   useEffect(() => {
     if (client) {
@@ -19,11 +34,12 @@ const EditClientModal: React.FC<EditClientModalProps> = ({ client, onClose, onCl
         email: client.email,
         phone: client.phone,
         numeroCartola: client.numeroCartola,
+        advisorCollectionId: client.advisorCollectionId,
       });
     }
   }, [client]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
@@ -89,6 +105,25 @@ const EditClientModal: React.FC<EditClientModalProps> = ({ client, onClose, onCl
               onChange={handleChange}
               className="w-full p-2 mb-3 border border-gray-300 rounded-md"
             />
+
+            {/* Selector de Asesor */}
+            <div className="mb-3">
+                <label htmlFor="advisor" className="block text-sm font-medium text-gray-700 text-left mb-1">Asesor</label>
+                <select
+                    name="advisorCollectionId"
+                    value={formData.advisorCollectionId || ''}
+                    onChange={handleChange}
+                    className="w-full p-2 border border-gray-300 rounded-md bg-white"
+                >
+                    <option value="">-- Sin Asesor --</option>
+                    {advisors.map(a => (
+                        <option key={a.id} value={a.id}>
+                            {a.nombre}
+                        </option>
+                    ))}
+                </select>
+            </div>
+
             <div className="items-center px-4 py-3">
               <button
                 type="submit"

@@ -12,6 +12,7 @@ export interface NewClientData {
     cedula: string;
     numeroCartola: string;
     comment: string;
+    advisorCollectionId?: string;
 }
 
 export interface Client {
@@ -23,6 +24,7 @@ export interface Client {
     numeroCartola: string;
     comment: string;
     role: string;
+    advisorCollectionId?: string;
     createdAt: any;
 }
 
@@ -35,7 +37,7 @@ export interface Client {
  */
 export const createClientProfile = async (clientData: NewClientData): Promise<string> => {
     // Desestructuramos para mayor claridad y validación temprana
-    const { email, password, name, phone, cedula, numeroCartola, comment } = clientData;
+    const { email, password, name, phone, cedula, numeroCartola, comment, advisorCollectionId } = clientData;
 
     // Aunque el backend valida, una validación temprana aquí puede dar errores más rápidos en desarrollo.
     if (!email || !password || !name) {
@@ -59,7 +61,8 @@ export const createClientProfile = async (clientData: NewClientData): Promise<st
             phone,
             cedula,
             numeroCartola,
-            comment
+            comment,
+            advisorCollectionId
         }),
     });
 
@@ -76,8 +79,14 @@ export const createClientProfile = async (clientData: NewClientData): Promise<st
     return uid;
 };
 
-export const getAllClients = async (): Promise<Client[]> => {
-    const q = query(collection(db, "users"), where("role", "==", "client"));
+export const getAllClients = async (advisorId?: string): Promise<Client[]> => {
+    let q;
+    if (advisorId) {
+        q = query(collection(db, "users"), where("role", "==", "client"), where("advisorCollectionId", "==", advisorId));
+    } else {
+        q = query(collection(db, "users"), where("role", "==", "client"));
+    }
+    
     const querySnapshot = await getDocs(q);
     const clients: Client[] = [];
     querySnapshot.forEach((doc) => {
