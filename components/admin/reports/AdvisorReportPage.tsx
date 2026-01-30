@@ -1,6 +1,7 @@
 // src/components/admin/reports/AdvisorReportPage.tsx
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import Papa from 'papaparse';
 import { getAdvisorStats, AdvisorStats } from '@/services/reportService';
 import { getAllProgrammedSavings } from '@/services/savingsService';
 import { getAllServices, NonFinancialService } from '@/services/nonFinancialService';
@@ -93,6 +94,49 @@ export const AdvisorReportPage: React.FC = () => {
         setModalType(null);
     };
 
+    const handleExport = () => {
+        if (!modalType) return;
+
+        let csvData: Record<string, any>[] = [];
+        let fileName = '';
+
+        if (modalType === 'savings') {
+            fileName = `Ahorros_${selectedAdvisorName.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.csv`;
+            csvData = savingsData.map(s => ({
+                'Plan': s.nombrePlan,
+                'Cliente': s.clientName,
+                'Saldo Actual': s.saldoActual,
+                'Meta': s.montoMeta,
+                'Número Cartola': s.numeroCartola,
+                'Estado': s.estadoPlan,
+                'Fecha Inicio': s.fechaInicioPlan ? new Date(s.fechaInicioPlan as any).toLocaleDateString() : ''
+            }));
+        } else if (modalType === 'services') {
+            fileName = `Servicios_${selectedAdvisorName.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.csv`;
+            csvData = servicesData.map(s => ({
+                'Servicio': s.tipoDeServicio,
+                'Cliente': s.userName,
+                'Estado': s.estadoGeneral,
+                'Fecha Solicitud': s.fechaSolicitud && typeof (s.fechaSolicitud as any).toDate === 'function' 
+                    ? (s.fechaSolicitud as any).toDate().toLocaleDateString() 
+                    : new Date(s.fechaSolicitud as any).toLocaleDateString()
+            }));
+        }
+
+        const csv = Papa.unparse(csvData);
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        if (link.download !== undefined) {
+            const url = URL.createObjectURL(blob);
+            link.setAttribute('href', url);
+            link.setAttribute('download', fileName);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    };
+
     if (loading) return <div className="p-8 text-center text-gray-500">Cargando reporte de asesores...</div>;
 
     return (
@@ -171,9 +215,15 @@ export const AdvisorReportPage: React.FC = () => {
                             <h3 className="text-xl font-bold text-gray-800">
                                 {modalType === 'savings' ? 'Ahorros Activos' : 'Servicios Activos'} - {selectedAdvisorName}
                             </h3>
-                            <button onClick={closeModal} className="text-gray-400 hover:text-gray-600">
-                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
-                            </button>
+                            <div className="flex items-center space-x-2">
+                                <button onClick={handleExport} className="text-sm bg-indigo-50 text-indigo-600 hover:bg-indigo-100 px-3 py-1.5 rounded flex items-center transition-colors">
+                                    <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                                    Exportar
+                                </button>
+                                <button onClick={closeModal} className="text-gray-400 hover:text-gray-600">
+                                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                                </button>
+                            </div>
                         </div>
                         
                         <div className="p-6 overflow-y-auto flex-1">
