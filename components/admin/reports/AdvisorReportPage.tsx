@@ -14,6 +14,8 @@ export const AdvisorReportPage: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
 
+    const [selectedMonth, setSelectedMonth] = useState<string>('');
+    
     // Modal State
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedAdvisorName, setSelectedAdvisorName] = useState('');
@@ -25,11 +27,13 @@ export const AdvisorReportPage: React.FC = () => {
     useEffect(() => {
         (async () => {
             setLoading(true);
-            const data = await getAdvisorStats();
+            const monthDate = selectedMonth ? new Date(selectedMonth + '-01T00:00:00') : null;
+            // Always include finished as per requirement
+            const data = await getAdvisorStats(monthDate, true);
             setAdvisors(data);
             setLoading(false);
         })();
-    }, []);
+    }, [selectedMonth]);
 
     const filteredAdvisors = advisors.filter(advisor => 
         advisor.advisorName.toLowerCase().includes(searchTerm.toLowerCase())
@@ -51,9 +55,24 @@ export const AdvisorReportPage: React.FC = () => {
             // Create a map for quick access
             const clientMap = new Map(advisorClients.map(c => [c.id, c.name]));
 
-            // Filter by advisor and active status
+            // Filter by advisor and status (Active + Completed)
             const filtered = allSavings
-                .filter(s => s.advisorId === advisorId && s.estadoPlan === ProgrammedSavingStatus.ACTIVO)
+                .filter(s => {
+                    if (s.advisorId !== advisorId) return false;
+                    const isActive = s.estadoPlan === ProgrammedSavingStatus.ACTIVO;
+                    const isFinished = s.estadoPlan === ProgrammedSavingStatus.COMPLETADO;
+                    if (!isActive && !isFinished) return false;
+
+                    // Date Filter
+                    if (selectedMonth) {
+                         const startOfMonth = new Date(selectedMonth + '-01T00:00:00');
+                         const endOfMonth = new Date(startOfMonth.getFullYear(), startOfMonth.getMonth() + 1, 0, 23, 59, 59);
+                         const date = s.fechaInicioPlan ? new Date(s.fechaInicioPlan as any) : null;
+                         if (!date || date < startOfMonth || date > endOfMonth) return false;
+                    }
+
+                    return true;
+                })
                 .map(s => ({
                     ...s,
                     clientName: clientMap.get(s.clienteId) || 'Desconocido'
@@ -76,11 +95,32 @@ export const AdvisorReportPage: React.FC = () => {
 
         try {
             const all = await getAllServices();
-             // Filter by advisor and active status
-            const filtered = all.filter(s => 
-                s.advisorId === advisorId && 
-                (s.estadoGeneral === 'EN_EJECUCION' || s.estadoGeneral === 'SOLICITADO')
-            );
+             // Filter by advisor and status (Active + Finalized)
+            const filtered = all.filter(s => {
+                if (s.advisorId !== advisorId) return false;
+                
+                 const isActive = s.estadoGeneral === 'EN_EJECUCION' || s.estadoGeneral === 'SOLICITADO';
+                 const isFinished = s.estadoGeneral === 'FINALIZADO';
+                 if (!isActive && !isFinished) return false;
+
+                 // Date Filter
+                 if (selectedMonth) {
+                    const startOfMonth = new Date(selectedMonth + '-01T00:00:00');
+                    const endOfMonth = new Date(startOfMonth.getFullYear(), startOfMonth.getMonth() + 1, 0, 23, 59, 59);
+                    
+                    let date: Date | null = null;
+                    if (s.fechaSolicitud) {
+                         if (typeof (s.fechaSolicitud as any).toDate === 'function') {
+                            date = (s.fechaSolicitud as any).toDate();
+                         } else {
+                            date = new Date(s.fechaSolicitud as any);
+                         }
+                    }
+                    if (!date || date < startOfMonth || date > endOfMonth) return false;
+                 }
+                 
+                 return true;
+            });
             setServicesData(filtered);
         } catch (error) {
             console.error("Error fetching services details:", error);
@@ -144,14 +184,33 @@ export const AdvisorReportPage: React.FC = () => {
             <h1 className="text-3xl font-bold text-gray-800 mb-6">Reporte de Asesores</h1>
             
             <div className="mb-6 bg-white p-4 rounded-lg shadow-sm border border-gray-100 flex justify-between items-center">
-                <input 
-                    type="text" 
-                    placeholder="Buscar asesor..." 
-                    className="border border-gray-300 rounded px-4 py-2 w-full max-w-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                />
-                <div className="text-gray-500 text-sm">
+                <div className="flex space-x-4 w-full max-w-2xl">
+                    <input 
+                        type="text" 
+                        placeholder="Buscar asesor..." 
+                        className="border border-gray-300 rounded px-4 py-2 w-full focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                    />
+                    <div className="flex items-center space-x-2 whitespace-nowrap">
+                        <span className="text-gray-600 text-sm">Mes:</span>
+                        <input 
+                            type="month" 
+                            className="border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            value={selectedMonth}
+                            onChange={(e) => setSelectedMonth(e.target.value)}
+                        />
+                         {selectedMonth && (
+                            <button 
+                                onClick={() => setSelectedMonth('')}
+                                className="text-sm text-red-500 hover:text-red-700"
+                            >
+                                Limpiar
+                            </button>
+                        )}
+                    </div>
+                </div>
+                <div className="text-gray-500 text-sm whitespace-nowrap ml-4">
                     Total: {filteredAdvisors.length} asesores
                 </div>
             </div>
@@ -161,9 +220,9 @@ export const AdvisorReportPage: React.FC = () => {
                     <thead className="bg-gray-50 text-gray-500 uppercase font-medium text-xs">
                         <tr>
                             <th className="px-6 py-4">Nombre del Asesor</th>
-                            <th className="px-6 py-4 text-center">Ahorros Activos</th>
+                            <th className="px-6 py-4 text-center">Ahorros</th>
                             <th className="px-6 py-4 text-center">Capital Gestionado</th>
-                            <th className="px-6 py-4 text-center">Servicios Activos</th>
+                            <th className="px-6 py-4 text-center">Servicios</th>
                             <th className="px-6 py-4 text-center">Efectividad</th>
                         </tr>
                     </thead>
@@ -191,8 +250,31 @@ export const AdvisorReportPage: React.FC = () => {
                                     </button>
                                 </td>
                                 <td className="px-6 py-4 text-center">
-                                    {/* Placeholder algorithm for effectiveness */}
-                                    <span className="text-xs text-gray-400">N/A</span>
+                                    <div className="flex flex-col items-center">
+                                        <div className="relative pt-1 w-full max-w-[100px]">
+                                            <div className="flex mb-2 items-center justify-between">
+                                                <div>
+                                                    <span className={`text-xs font-semibold inline-block py-1 px-2 uppercase rounded-full ${
+                                                        advisor.effectiveness >= 70 ? 'text-green-600 bg-green-200' :
+                                                        advisor.effectiveness >= 40 ? 'text-yellow-600 bg-yellow-200' :
+                                                        'text-red-600 bg-red-200'
+                                                    }`}>
+                                                        {advisor.effectiveness}%
+                                                    </span>
+                                                </div>
+                                            </div>
+                                            <div className="overflow-hidden h-2 mb-4 text-xs flex rounded bg-gray-200">
+                                                <div style={{ width: `${advisor.effectiveness}%` }} className={`shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center ${
+                                                       advisor.effectiveness >= 70 ? 'bg-green-500' :
+                                                       advisor.effectiveness >= 40 ? 'bg-yellow-500' :
+                                                       'bg-red-500'
+                                                }`}></div>
+                                            </div>
+                                        </div>
+                                        <div className="text-[10px] text-gray-400 mt-1" title="Servicios Finalizados vs Totales (Activos + Finalizados)">
+                                            Tasa de Finalización
+                                        </div>
+                                    </div>
                                 </td>
                             </tr>
                         ))}
@@ -213,7 +295,7 @@ export const AdvisorReportPage: React.FC = () => {
                     <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[80vh] flex flex-col">
                         <div className="p-6 border-b border-gray-200 flex justify-between items-center">
                             <h3 className="text-xl font-bold text-gray-800">
-                                {modalType === 'savings' ? 'Ahorros Activos' : 'Servicios Activos'} - {selectedAdvisorName}
+                                {modalType === 'savings' ? 'Ahorros' : 'Servicios'} - {selectedAdvisorName}
                             </h3>
                             <div className="flex items-center space-x-2">
                                 <button onClick={handleExport} className="text-sm bg-indigo-50 text-indigo-600 hover:bg-indigo-100 px-3 py-1.5 rounded flex items-center transition-colors">

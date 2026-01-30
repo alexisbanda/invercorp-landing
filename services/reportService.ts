@@ -225,16 +225,17 @@ export interface AdvisorStats {
     activeSavingsCount: number;
     activeServicesCount: number;
     totalCapitalManaged: number;
+    effectiveness: number;
 }
 
-export const getAdvisorStats = async (): Promise<AdvisorStats[]> => {
+export const getAdvisorStats = async (month?: Date | null, includeFinished: boolean = false): Promise<AdvisorStats[]> => {
     const [savings, services, advisors] = await Promise.all([
         getAllProgrammedSavings(),
         getAllServices(),
         getAllAdvisors()
     ]);
 
-    const statsMap: Record<string, AdvisorStats> = {};
+    const statsMap: Record<string, AdvisorStats & { finalizedServicesCount: number }> = {};
 
     // Initialize map with all advisors
     advisors.forEach(ad => {
@@ -243,26 +244,112 @@ export const getAdvisorStats = async (): Promise<AdvisorStats[]> => {
             advisorName: ad.nombre,
             activeSavingsCount: 0,
             activeServicesCount: 0,
-            totalCapitalManaged: 0
+            totalCapitalManaged: 0,
+            effectiveness: 0,
+            finalizedServicesCount: 0
         };
     });
 
+    const startOfMonth = month ? new Date(month.getFullYear(), month.getMonth(), 1) : null;
+    const endOfMonth = month ? new Date(month.getFullYear(), month.getMonth() + 1, 0, 23, 59, 59) : null;
+
     // Aggregate Savings
     savings.forEach(s => {
-        if (s.estadoPlan === ProgrammedSavingStatus.ACTIVO && s.advisorId && statsMap[s.advisorId]) {
-            statsMap[s.advisorId].activeSavingsCount++;
-            statsMap[s.advisorId].totalCapitalManaged += (s.saldoActual || 0);
+        if (!s.advisorId || !statsMap[s.advisorId]) return;
+
+        // Status Filter
+        const isActive = s.estadoPlan === ProgrammedSavingStatus.ACTIVO;
+        const isFinished = s.estadoPlan === ProgrammedSavingStatus.COMPLETADO;
+        
+        if (!isActive && !(includeFinished && isFinished)) return;
+
+        // Date Filter
+        if (month && startOfMonth && endOfMonth) {
+            // Using fechaInicioPlan for date filtering
+            const date = s.fechaInicioPlan ? new Date(s.fechaInicioPlan as any) : null;
+            if (!date || date < startOfMonth || date > endOfMonth) return;
         }
+
+        statsMap[s.advisorId].activeSavingsCount++;
+        statsMap[s.advisorId].totalCapitalManaged += (s.saldoActual || 0);
     });
 
     // Aggregate Services
     services.forEach(s => {
-        if ((s.estadoGeneral === 'EN_EJECUCION' || s.estadoGeneral === 'SOLICITADO') && s.advisorId && statsMap[s.advisorId]) {
-            statsMap[s.advisorId].activeServicesCount++;
+        if (!s.advisorId || !statsMap[s.advisorId]) return;
+
+        // Status Filter
+        const isActive = s.estadoGeneral === 'EN_EJECUCION' || s.estadoGeneral === 'SOLICITADO';
+        const isFinished = s.estadoGeneral === 'FINALIZADO';
+        
+        if (!isActive && !(includeFinished && isFinished)) return;
+        
+        // Date Filter
+        if (month && startOfMonth && endOfMonth) {
+            // Using fechaSolicitud for date filtering
+            // Handle Firestore Timestamp or Date object
+            let date: Date | null = null;
+            if (s.fechaSolicitud) {
+                 if (typeof (s.fechaSolicitud as any).toDate === 'function') {
+                    date = (s.fechaSolicitud as any).toDate();
+                 } else {
+                    date = new Date(s.fechaSolicitud as any);
+                 }
+            }
+
+            if (!date || date < startOfMonth || date > endOfMonth) return;
         }
+
+        if (isActive) {
+            statsMap[s.advisorId].activeServicesCount++;
+        } else if (isFinished) {
+            // Count finalized services for effectiveness calculation
+            // Note: If 'includeFinished' is false, this block is active only if we are in this loop... 
+            // Wait, if !includeFinished, we RETURNED above if !isActive & !isFinished.
+            // If includeFinished=false, we only process Active services.
+            // So effectiveness will be 0/Total? No.
+            // If the user wants to see "Effectiveness" regardless of the filter...
+            // BUT the function `getAdvisorStats` is called with `includeFinished=true` in AdvisorReportPage now (hardcoded).
+            // So we ARE receiving finalized services here.
+            
+            // We need to NOT increment 'activeServicesCount' for finalized ones IF we want 'activeServicesCount' to mean ACTIVE.
+            // But the previous implementations (and UI columns) say "Servicios Activos" or just "Servicios".
+            // If I separate them, the table column "Servicios" might show Total (Active + Finalized) or just Active.
+            // In the previous step, I simply incremented `activeServicesCount` for both.
+            // User query: "Active vs Finalized".
+            // So I should count them separately.
+            statsMap[s.advisorId].finalizedServicesCount++;
+        }
+        
+        // Maintain the "Active Services Count" as a Total Count for the column display?
+        // The column header says "Servicios".
+        // If I want to show the total load, I should probably sum them or keep using activeServicesCount as "Total Services (Filtered)".
+        // I will stick to usage: activeServicesCount = The count displayed in the main column.
+        statsMap[s.advisorId].activeServicesCount++;
     });
 
-    return Object.values(statsMap);
+    // Calculate Effectiveness
+    return Object.values(statsMap).map(stat => {
+        const { finalizedServicesCount, ...rest } = stat;
+        
+        // We counted ACTIVE + FINALIZED in 'activeServicesCount' (variable name is misleading now, it's really 'displayServicesCount').
+        // Let's deduce pure active count:
+        // const pureActive = stat.activeServicesCount - finalizedServicesCount; 
+        
+        // Formula: Finalized / (Active + Finalized)
+        // Since activeServicesCount ALREADY includes both (per logic above), the denominator is activeServicesCount (assuming it tracks processed items).
+        
+        const totalConsidered = stat.activeServicesCount; 
+        
+        const effectiveness = totalConsidered > 0 
+            ? (finalizedServicesCount / totalConsidered) * 100 
+            : 0;
+        
+        return {
+            ...rest,
+            effectiveness: parseFloat(effectiveness.toFixed(2))
+        };
+    });
 };
 
 export interface StatusDistribution {
