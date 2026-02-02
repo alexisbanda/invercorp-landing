@@ -172,8 +172,18 @@ export const confirmDeposit = async (userId: string, numeroCartola: number, depo
         const newSaldo = (planData.saldoActual || 0) + depositData.montoDeposito;
 
         // Actualizar el saldo del plan de ahorro
+        let newStatus = planData.estadoPlan;
+        if (newSaldo >= planData.montoMeta && planData.estadoPlan !== ProgrammedSavingStatus.COMPLETADO) {
+            newStatus = ProgrammedSavingStatus.COMPLETADO;
+        }
+
+        // Si el saldo baja de la meta (por corrección de depósito o retiro) y estaba completado, 
+        // podría reabrirse, pero por ahora mantendremos la lógica simple de solo completar hacia adelante 
+        // o dejar que el admin lo gestione manualmente si fue un error.
+
         transaction.update(planRef, {
             saldoActual: newSaldo,
+            estadoPlan: newStatus,
             ultimaActualizacion: new Date()
         });
 

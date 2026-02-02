@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import toast, { Toaster } from 'react-hot-toast';
 import { useAuth } from '../../contexts/AuthContext';
-import { ProgrammedSaving, Deposit, UserProfile, DepositStatus } from '../../types';
+import { ProgrammedSaving, Deposit, UserProfile, DepositStatus, ProgrammedSavingStatus } from '../../types';
 import { getProgrammedSavingById, getDepositsForSavingPlan, confirmDeposit, rejectDeposit, addManualDepositByAdmin, deleteDeposit, addWithdrawalReceipt, voidWithdrawalReceipt } from '../../services/savingsService'; // Importar la nueva función
 import { getUserProfile } from '../../services/userService';
 import { GenerateReceiptModal } from './GenerateReceiptModal';
@@ -100,6 +100,7 @@ const AdminProgrammedSavingDetailPage: React.FC = () => {
     const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
     const [receiptInitialData, setReceiptInitialData] = useState<any>(null);
     const [receiptContext, setReceiptContext] = useState<{ type: 'deposit' | 'withdrawal', id: string } | null>(null);
+    const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
 
     const numeroCartola = numeroCartolaStr ? parseInt(numeroCartolaStr, 10) : NaN;
 
@@ -223,6 +224,28 @@ const AdminProgrammedSavingDetailPage: React.FC = () => {
         }
     };
 
+    const handleStatusChange = async (newStatus: ProgrammedSavingStatus) => {
+        if (!currentUser || !clienteId || isNaN(numeroCartola)) return;
+
+        if (newStatus === ProgrammedSavingStatus.CANCELADO) {
+            const confirmCancel = window.confirm("¿Estás seguro de que deseas CANCELAR este plan? Esto indicará que el plan se cerró antes de completarse.");
+            if (!confirmCancel) return;
+        }
+
+        const toastId = toast.loading(`Cambiando estado a ${newStatus}...`);
+        try {
+            // @ts-ignore
+            await import('../../services/savingsService').then(({ updateProgrammedSavingStatus }) =>
+                updateProgrammedSavingStatus(clienteId, numeroCartola, newStatus)
+            );
+            toast.success('Estado actualizado correctamente.', { id: toastId });
+            fetchData();
+        } catch (err) {
+            toast.error('Error al actualizar el estado.', { id: toastId });
+            console.error(err);
+        }
+    };
+
     const handleOpenReceipt = (deposit: Deposit) => {
         if (!plan) return;
         setReceiptInitialData({
@@ -329,12 +352,42 @@ const AdminProgrammedSavingDetailPage: React.FC = () => {
                 {/* Resumen del Plan y Cliente */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                     <div className="md:col-span-2 bg-white p-6 rounded-lg shadow-md">
-                        <div className="flex justify-between items-start">
                             <h1 className="text-2xl font-bold text-gray-800">{plan.nombrePlan}</h1>
-                            <span className={`px-3 py-1 text-sm font-semibold rounded-full ${plan.estadoPlan === 'Activo' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
-                                {plan.estadoPlan}
-                            </span>
-                        </div>
+                            <div className="flex items-center gap-2">
+                                <span className={`px-3 py-1 text-sm font-semibold rounded-full ${plan.estadoPlan === 'Activo' ? 'bg-green-100 text-green-800' :
+                                    plan.estadoPlan === 'Completado' ? 'bg-yellow-100 text-yellow-800' :
+                                        plan.estadoPlan === 'Pausado' ? 'bg-gray-100 text-gray-800' :
+                                            'bg-red-100 text-red-800'
+                                    }`}>
+                                    {plan.estadoPlan}
+                                </span>
+                                <div className="relative">
+                                    <button 
+                                        onClick={() => setIsStatusDropdownOpen(!isStatusDropdownOpen)}
+                                        className="text-gray-400 hover:text-gray-600 text-sm focus:outline-none"
+                                    >
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                        </svg>
+                                    </button>
+                                    {isStatusDropdownOpen && (
+                                        <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-10 block">
+                                            {[ProgrammedSavingStatus.ACTIVO, ProgrammedSavingStatus.PAUSADO, ProgrammedSavingStatus.COMPLETADO, ProgrammedSavingStatus.CANCELADO].map((status) => (
+                                                <button
+                                                    key={status}
+                                                    onClick={() => {
+                                                        handleStatusChange(status);
+                                                        setIsStatusDropdownOpen(false);
+                                                    }}
+                                                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                                                >
+                                                    Marcar como {status}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
                         <p className="text-gray-500 mt-1">ID del Plan: {plan.numeroCartola}</p>
 
                         <div className="mt-6">

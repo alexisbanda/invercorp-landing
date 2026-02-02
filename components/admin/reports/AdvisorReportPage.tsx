@@ -67,7 +67,16 @@ export const AdvisorReportPage: React.FC = () => {
                     if (selectedMonth) {
                          const startOfMonth = new Date(selectedMonth + '-01T00:00:00');
                          const endOfMonth = new Date(startOfMonth.getFullYear(), startOfMonth.getMonth() + 1, 0, 23, 59, 59);
-                         const date = s.fechaInicioPlan ? new Date(s.fechaInicioPlan as any) : null;
+                         
+                         let date: Date | null = null;
+                         if (s.fechaInicioPlan) {
+                              if (typeof (s.fechaInicioPlan as any).toDate === 'function') {
+                                 date = (s.fechaInicioPlan as any).toDate();
+                              } else {
+                                 date = new Date(s.fechaInicioPlan as any);
+                              }
+                         }
+
                          if (!date || date < startOfMonth || date > endOfMonth) return false;
                     }
 
@@ -153,14 +162,21 @@ export const AdvisorReportPage: React.FC = () => {
             }));
         } else if (modalType === 'services') {
             fileName = `Servicios_${selectedAdvisorName.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.csv`;
-            csvData = servicesData.map(s => ({
-                'Servicio': s.tipoDeServicio,
-                'Cliente': s.userName,
-                'Estado': s.estadoGeneral,
-                'Fecha Solicitud': s.fechaSolicitud && typeof (s.fechaSolicitud as any).toDate === 'function' 
-                    ? (s.fechaSolicitud as any).toDate().toLocaleDateString() 
-                    : new Date(s.fechaSolicitud as any).toLocaleDateString()
-            }));
+            csvData = servicesData.map(s => {
+                const totalCost = (s.recibos || [])
+                    .filter(r => r.status === 'valid')
+                    .reduce((sum, r) => sum + r.amount, 0);
+                
+                return {
+                    'Servicio': s.tipoDeServicio,
+                    'Cliente': s.userName,
+                    'Costo': totalCost,
+                    'Estado': s.estadoGeneral,
+                    'Fecha Solicitud': s.fechaSolicitud && typeof (s.fechaSolicitud as any).toDate === 'function' 
+                        ? (s.fechaSolicitud as any).toDate().toLocaleDateString() 
+                        : new Date(s.fechaSolicitud as any).toLocaleDateString()
+                };
+            });
         }
 
         const csv = Papa.unparse(csvData);
@@ -349,35 +365,45 @@ export const AdvisorReportPage: React.FC = () => {
                                                 <tr>
                                                     <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Servicio</th>
                                                     <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Cliente</th>
+                                                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Costo</th>
                                                     <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Estado</th>
                                                     <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Fecha Solicitud</th>
                                                 </tr>
                                             </thead>
                                             <tbody className="bg-white divide-y divide-gray-200">
-                                                {servicesData.map((s) => (
-                                                    <tr 
-                                                        key={s.id} 
-                                                        className="hover:bg-gray-50 cursor-pointer transition-colors"
-                                                        onClick={() => navigate(`/portal/admin/services/${s.id}`)}
-                                                    >
-                                                        <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">{s.tipoDeServicio}</td>
-                                                        <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">{s.userName}</td>
-                                                        <td className="px-4 py-2 whitespace-nowrap text-sm">
-                                                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                                                                s.estadoGeneral === 'EN_EJECUCION' ? 'bg-blue-100 text-blue-800' : 'bg-yellow-100 text-yellow-800'
-                                                            }`}>
-                                                                {s.estadoGeneral}
-                                                            </span>
-                                                        </td>
-                                                        <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">
-                                                             {/* Handle Firestore Timestamp if exists or string date */}
-                                                            {s.fechaSolicitud && typeof (s.fechaSolicitud as any).toDate === 'function' 
-                                                                ? (s.fechaSolicitud as any).toDate().toLocaleDateString() 
-                                                                : new Date(s.fechaSolicitud as any).toLocaleDateString()}
-                                                        </td>
-                                                    </tr>
-                                                ))}
-                                                {servicesData.length === 0 && <tr><td colSpan={4} className="px-4 py-4 text-center text-sm text-gray-500">No hay servicios activos.</td></tr>}
+                                                {servicesData.map((s) => {
+                                                    const totalCost = (s.recibos || [])
+                                                        .filter(r => r.status === 'valid')
+                                                        .reduce((sum, r) => sum + r.amount, 0);
+
+                                                    return (
+                                                        <tr 
+                                                            key={s.id} 
+                                                            className="hover:bg-gray-50 cursor-pointer transition-colors"
+                                                            onClick={() => navigate(`/portal/admin/services/${s.id}`)}
+                                                        >
+                                                            <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">{s.tipoDeServicio}</td>
+                                                            <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">{s.userName}</td>
+                                                            <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900 font-medium">
+                                                                ${totalCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                            </td>
+                                                            <td className="px-4 py-2 whitespace-nowrap text-sm">
+                                                                <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                                                                    s.estadoGeneral === 'EN_EJECUCION' ? 'bg-blue-100 text-blue-800' : 'bg-yellow-100 text-yellow-800'
+                                                                }`}>
+                                                                    {s.estadoGeneral}
+                                                                </span>
+                                                            </td>
+                                                            <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">
+                                                                {/* Handle Firestore Timestamp if exists or string date */}
+                                                                {s.fechaSolicitud && typeof (s.fechaSolicitud as any).toDate === 'function' 
+                                                                    ? (s.fechaSolicitud as any).toDate().toLocaleDateString() 
+                                                                    : new Date(s.fechaSolicitud as any).toLocaleDateString()}
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                })}
+                                                {servicesData.length === 0 && <tr><td colSpan={5} className="px-4 py-4 text-center text-sm text-gray-500">No hay servicios activos.</td></tr>}
                                             </tbody>
                                         </table>
                                     )}

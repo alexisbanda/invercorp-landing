@@ -266,7 +266,14 @@ export const getAdvisorStats = async (month?: Date | null, includeFinished: bool
         // Date Filter
         if (month && startOfMonth && endOfMonth) {
             // Using fechaInicioPlan for date filtering
-            const date = s.fechaInicioPlan ? new Date(s.fechaInicioPlan as any) : null;
+            let date: Date | null = null;
+            if (s.fechaInicioPlan) {
+                 if (typeof (s.fechaInicioPlan as any).toDate === 'function') {
+                    date = (s.fechaInicioPlan as any).toDate();
+                 } else {
+                    date = new Date(s.fechaInicioPlan as any);
+                 }
+            }
             if (!date || date < startOfMonth || date > endOfMonth) return;
         }
 

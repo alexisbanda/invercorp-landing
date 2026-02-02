@@ -134,8 +134,26 @@ const AddEditInstallmentForm: React.FC<{
 }> = ({ initial, onCancel, onSubmit }) => {
     const [amount, setAmount] = useState<number>(initial?.amount || 0);
     const [dueDate, setDueDate] = useState<string>(() => {
-        const d = initial?.dueDate ? (initial.dueDate instanceof Date ? initial.dueDate : new Date(initial.dueDate as any)) : new Date();
-        return d.toISOString().slice(0, 10);
+        let d = new Date();
+        if (initial?.dueDate) {
+            // @ts-ignore
+            if (typeof initial.dueDate.toDate === 'function') {
+                // @ts-ignore
+                d = initial.dueDate.toDate();
+            } else if (initial.dueDate instanceof Date) {
+                d = initial.dueDate;
+            } else {
+                d = new Date(initial.dueDate);
+            }
+        }
+        
+        // Ajustar a zona horaria local para que el slice no cambie el día si es tarde en UTC
+        // Sin embargo, toISOString() usa UTC.
+        // Si queremos preservar la fecha exacta visualmente (YYYY-MM-DD), lo mejor es manejarlo localmente.
+        // Un truco simple para inputs type="date" es:
+        const offset = d.getTimezoneOffset() * 60000;
+        const localDate = new Date(d.getTime() - offset);
+        return localDate.toISOString().slice(0, 10);
     });
     const [installmentNumber, setInstallmentNumber] = useState<number>(initial?.installmentNumber || 0);
     const [status, setStatus] = useState<string>(initial?.status || 'POR VENCER');
