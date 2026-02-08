@@ -39,11 +39,13 @@ const NewServiceForm: React.FC = () => {
         tipoDeServicio: ServiceType | '';
         descripcionCliente: string;
         advisorId: string;
+        valorServicio: string;
     }>({
         clienteId: '',
         tipoDeServicio: '',
         descripcionCliente: '',
         advisorId: '',
+        valorServicio: '',
     });
 
     // Efecto para aplicar restricciones de Advisor
@@ -124,7 +126,7 @@ const NewServiceForm: React.FC = () => {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        const { clienteId, tipoDeServicio, descripcionCliente } = formData;
+        const { clienteId, tipoDeServicio, descripcionCliente, valorServicio } = formData;
 
         // Validaciones
         if (!clienteId || !tipoDeServicio) {
@@ -151,6 +153,7 @@ const NewServiceForm: React.FC = () => {
                 descripcionCliente,
                 advisorId: selectedAdvisor?.id,
                 advisorName: selectedAdvisor?.nombre,
+                valorServicio: valorServicio ? parseFloat(valorServicio) : undefined,
             };
 
             const newServiceId = await createService(newServiceData);
@@ -257,6 +260,25 @@ const NewServiceForm: React.FC = () => {
                                 </option>
                             ))}
                         </select>
+                    </div>
+
+                     {/* Valor del Servicio (Opcional) */}
+                     <div>
+                        <label htmlFor="valorServicio" className="block text-sm font-semibold text-gray-700 mb-2">
+                            Valor del Servicio ($)
+                        </label>
+                        <input
+                            type="number"
+                            id="valorServicio"
+                            name="valorServicio"
+                            value={formData.valorServicio}
+                            onChange={handleChange}
+                            placeholder="0.00"
+                            step="0.01"
+                            min="0"
+                            className="mt-1 block w-full px-4 py-2 text-base border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">Opcional. Puedes asignarlo más tarde.</p>
                     </div>
 
                     {/* Descripción del Cliente */}

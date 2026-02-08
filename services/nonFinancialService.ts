@@ -48,6 +48,7 @@ export interface NonFinancialService {
     advisorId?: string;
     advisorName?: string;
     recibos?: ServiceReceipt[];
+    valorServicio?: number; // Nuevo campo para el valor pre-asignado
 }
 
 export interface ServiceReceipt {
@@ -151,6 +152,7 @@ export interface NewServiceData {
     descripcionCliente: string;
     advisorId?: string;
     advisorName?: string;
+    valorServicio?: number;
 }
 
 /**
@@ -159,7 +161,7 @@ export interface NewServiceData {
  * @returns El ID del nuevo documento creado.
  */
 export const createService = async (data: NewServiceData): Promise<string> => {
-    const { clienteId, userName, tipoDeServicio, descripcionCliente, advisorId, advisorName } = data;
+    const { clienteId, userName, tipoDeServicio, descripcionCliente, advisorId, advisorName, valorServicio } = data;
     const currentUser = auth.currentUser;
 
     if (!currentUser) {
@@ -194,6 +196,7 @@ export const createService = async (data: NewServiceData): Promise<string> => {
                 notes: 'Creación de la solicitud de servicio.',
             },
         ],
+        valorServicio: valorServicio || 0,
     };
 
     const docRef = await addDoc(collection(db, 'servicios'), newServiceDoc);
@@ -281,6 +284,21 @@ export const updateServiceStatus = async (serviceId: string, newStatus: string, 
         estadoGeneral: newGeneralStatus,
         fechaUltimaActualizacion: now,
         historialDeEstados: arrayUnion(historyEntry),
+    });
+};
+
+/**
+ * Actualiza el valor monetario asignado a un servicio.
+ * @param serviceId El ID del servicio.
+ * @param value El nuevo valor.
+ */
+export const updateServiceValue = async (serviceId: string, value: number): Promise<void> => {
+    const currentUser = auth.currentUser;
+    if (!currentUser) throw new Error('Usuario no autenticado');
+
+    const serviceRef = doc(db, 'servicios', serviceId);
+    await updateDoc(serviceRef, {
+        valorServicio: value
     });
 };
 

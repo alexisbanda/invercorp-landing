@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import toast, { Toaster } from 'react-hot-toast';
-import { getServiceById, updateServiceStatus, NonFinancialService, Attachment } from '../../services/nonFinancialService';
+import { getServiceById, updateServiceStatus, updateServiceValue, NonFinancialService, Attachment } from '../../services/nonFinancialService';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { storage } from '../../firebase-config';
 import { getUserProfile } from '../../services/userService';
@@ -27,6 +27,29 @@ const ServiceDetailPage: React.FC = () => {
     const [notes, setNotes] = useState('');
     const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
     const [fileError, setFileError] = useState<string | null>(null);
+
+    // Estado para editar el valor del servicio
+    const [isEditingValue, setIsEditingValue] = useState(false);
+    const [editedValue, setEditedValue] = useState<string>('');
+
+    const handleUpdateValue = async () => {
+        if (!service) return;
+        const newValue = parseFloat(editedValue);
+        if (isNaN(newValue) || newValue < 0) {
+            toast.error('Por favor ingresa un valor válido');
+            return;
+        }
+
+        try {
+            await updateServiceValue(service.id, newValue);
+            setService(prev => prev ? { ...prev, valorServicio: newValue } : null);
+            setIsEditingValue(false);
+            toast.success('Valor actualizado');
+        } catch (error) {
+            console.error(error);
+            toast.error('Error al actualizar el valor');
+        }
+    };
 
     const fetchService = useCallback(async () => {
         if (!serviceId) return;
@@ -148,6 +171,47 @@ const ServiceDetailPage: React.FC = () => {
                             <span className={`px-3 py-1 text-sm font-semibold rounded-full ${service.estadoGeneral === 'FINALIZADO' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'}`}>
                                 {service.estadoGeneral.replace('_', ' ')}
                             </span>
+
+                        </div>
+
+                        {/* Valor del Servicio */}
+                        <div className="mb-6 bg-blue-50 p-4 rounded-md flex justify-between items-center">
+                            <div>
+                                <h3 className="font-semibold text-blue-800">Valor del Servicio</h3>
+                                {!isEditingValue ? (
+                                    <p className="text-2xl font-bold text-blue-900">
+                                        ${(service.valorServicio || 0).toFixed(2)}
+                                    </p>
+                                ) : (
+                                    <div className="flex gap-2 mt-1">
+                                        <input 
+                                            type="number" 
+                                            value={editedValue}
+                                            onChange={(e) => setEditedValue(e.target.value)}
+                                            className="p-1 border rounded w-32"
+                                            step="0.01"
+                                        />
+                                        <button onClick={handleUpdateValue} className="text-green-600 hover:text-green-800">
+                                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" /></svg>
+                                        </button>
+                                        <button onClick={() => setIsEditingValue(false)} className="text-red-500 hover:text-red-700">
+                                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                            {!isEditingValue && (
+                                <button 
+                                    onClick={() => {
+                                        setEditedValue((service.valorServicio || 0).toString());
+                                        setIsEditingValue(true);
+                                    }}
+                                    className="text-blue-600 hover:text-blue-800 flex items-center gap-1 text-sm font-medium"
+                                >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                                    Editar Valor
+                                </button>
+                            )}
                         </div>
 
                         {service.descripcionCliente && (
@@ -254,7 +318,7 @@ const ServiceDetailPage: React.FC = () => {
                 initialData={{
                     serviceId: service.id,
                     concept: formatServiceType(service.tipoDeServicio),
-                    amount: 0, // Default to 0
+                    amount: service.valorServicio || 0, // Use assigned value
                     clientName: service.userName,
                     clientId: client?.cedula || 'N/A',
                     receiptNumber: service.id.substring(0, 6).toUpperCase(), // Fallback
