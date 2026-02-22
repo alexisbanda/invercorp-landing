@@ -16,14 +16,12 @@ export const getAllAdvisors = async (): Promise<Advisor[]> => {
  * @param data Datos del asesor
  * @returns Objeto con el ID del asesor creado y la contraseña temporal generada.
  */
-export const createAdvisor = async (data: Omit<Advisor, 'id'>): Promise<{ id: string, tempPassword?: string }> => {
-    // 1. Generar contraseña temporal
-    const tempPassword = `Inver${new Date().getFullYear()}!${Math.floor(Math.random() * 1000)}`;
+export const createAdvisor = async (data: Omit<Advisor, 'id'>, password: string): Promise<{ id: string }> => {
 
     let uid: string;
     try {
         // 2. Crear usuario en Auth (Secondary App)
-        uid = await createSecondaryUser(data.correo, tempPassword);
+        uid = await createSecondaryUser(data.correo, password);
     } catch (error: any) {
         if (error.code === 'auth/email-already-in-use') {
             console.warn("El usuario ya existe en Auth, procederemos a vincularlo.");
@@ -54,7 +52,7 @@ export const createAdvisor = async (data: Omit<Advisor, 'id'>): Promise<{ id: st
         createdAt: serverTimestamp()
     });
 
-    return { id: docRef.id, tempPassword };
+    return { id: docRef.id };
 };
 
 export const updateAdvisor = async (id: string, data: Partial<Advisor>): Promise<void> => {

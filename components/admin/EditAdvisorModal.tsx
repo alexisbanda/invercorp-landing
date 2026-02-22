@@ -10,8 +10,10 @@ interface EditAdvisorModalProps {
 
 const EditAdvisorModal: React.FC<EditAdvisorModalProps> = ({ advisor, onClose, onAdvisorUpdated }) => {
   const [formData, setFormData] = useState<Omit<Advisor, 'id'>>({ nombre: '', telefono: '', correo: '' });
+  const [password, setPassword] = useState('');
   const [tempPassword, setTempPassword] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (advisor) {
@@ -22,6 +24,7 @@ const EditAdvisorModal: React.FC<EditAdvisorModalProps> = ({ advisor, onClose, o
       });
     } else {
       setFormData({ nombre: '', telefono: '', correo: '' });
+      setPassword('');
     }
   }, [advisor]);
 
@@ -30,28 +33,41 @@ const EditAdvisorModal: React.FC<EditAdvisorModalProps> = ({ advisor, onClose, o
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
+  const validatePassword = (pwd: string): string | null => {
+    if (pwd.length < 8) return 'La contraseña debe tener al menos 8 caracteres.';
+    if (!/[a-zA-Z]/.test(pwd)) return 'La contraseña debe contener al menos una letra.';
+    if (!/[0-9]/.test(pwd)) return 'La contraseña debe contener al menos un número.';
+    return null;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+
+    if (!advisor) {
+      const pwdError = validatePassword(password);
+      if (pwdError) {
+        setError(pwdError);
+        return;
+      }
+    }
+
+    setSubmitting(true);
     try {
       if (advisor) {
         await updateAdvisor(advisor.id, formData);
         onAdvisorUpdated();
         onClose();
       } else {
-        // Al crear, recibimos la contraseña temporal
-        const { tempPassword } = await createAdvisor(formData);
-        if (tempPassword) {
-            setTempPassword(tempPassword);
-            onAdvisorUpdated(); // Actualizamos la lista de fondo
-        } else {
-            onAdvisorUpdated();
-            onClose();
-        }
+        await createAdvisor(formData, password);
+        setTempPassword(password);
+        onAdvisorUpdated();
       }
     } catch (error: any) {
       console.error("Error saving advisor:", error);
       setError(error.message || "Error al guardar el asesor");
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -139,13 +155,28 @@ const EditAdvisorModal: React.FC<EditAdvisorModalProps> = ({ advisor, onClose, o
               onChange={handleChange}
               className="w-full p-2 mb-3 border border-gray-300 rounded-md"
               required
+              disabled={!!advisor}
             />
+            {!advisor && (
+              <>
+                <input
+                  type="password"
+                  placeholder="Contraseña"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full p-2 mb-1 border border-gray-300 rounded-md"
+                  required
+                />
+                <p className="text-xs text-gray-500 mb-3">Mínimo 8 caracteres, al menos una letra y un número.</p>
+              </>
+            )}
             <div className="items-center px-4 py-3">
               <button
                 type="submit"
-                className="px-4 py-2 bg-green-500 text-white text-base font-medium rounded-md w-full shadow-sm hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500"
+                disabled={submitting}
+                className="px-4 py-2 bg-green-500 text-white text-base font-medium rounded-md w-full shadow-sm hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Guardar
+                {submitting ? 'Guardando...' : 'Guardar'}
               </button>
             </div>
           </form>
