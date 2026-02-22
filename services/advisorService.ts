@@ -60,6 +60,22 @@ export const updateAdvisor = async (id: string, data: Partial<Advisor>): Promise
     await updateDoc(advisorDoc, data);
 };
 
+/**
+ * Actualiza la contraseña de un asesor usando la función serverless (Firebase Admin SDK).
+ */
+export const updateAdvisorPassword = async (uid: string, newPassword: string): Promise<void> => {
+    const response = await fetch('/.netlify/functions/updateUserPassword', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ uid, newPassword }),
+    });
+
+    if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Error al actualizar la contraseña.');
+    }
+};
+
 export const deleteAdvisor = async (id: string): Promise<void> => {
     const advisorDoc = doc(db, 'advisors', id);
     await deleteDoc(advisorDoc);

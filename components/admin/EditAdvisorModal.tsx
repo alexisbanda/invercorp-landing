@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { createAdvisor, updateAdvisor } from '../../services/advisorService';
+import { createAdvisor, updateAdvisor, updateAdvisorPassword } from '../../services/advisorService';
 import { Advisor } from '../../types';
 
 interface EditAdvisorModalProps {
@@ -56,8 +56,24 @@ const EditAdvisorModal: React.FC<EditAdvisorModalProps> = ({ advisor, onClose, o
     try {
       if (advisor) {
         await updateAdvisor(advisor.id, formData);
-        onAdvisorUpdated();
-        onClose();
+        // Si se proporcionó una nueva contraseña, actualizarla
+        if (password.trim()) {
+          const pwdError = validatePassword(password);
+          if (pwdError) {
+            setError(pwdError);
+            setSubmitting(false);
+            return;
+          }
+          if (!advisor.uid) {
+            throw new Error('No se encontró el UID del asesor. No se puede cambiar la contraseña.');
+          }
+          await updateAdvisorPassword(advisor.uid, password);
+          setTempPassword(password);
+          onAdvisorUpdated();
+        } else {
+          onAdvisorUpdated();
+          onClose();
+        }
       } else {
         await createAdvisor(formData, password);
         setTempPassword(password);
@@ -86,14 +102,17 @@ const EditAdvisorModal: React.FC<EditAdvisorModalProps> = ({ advisor, onClose, o
                     <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100">
                         <svg className="h-6 w-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>
                     </div>
-                    <h3 className="text-lg leading-6 font-medium text-gray-900 mt-2">¡Asesor Creado!</h3>
+                    <h3 className="text-lg leading-6 font-medium text-gray-900 mt-2">{advisor ? '¡Contraseña Actualizada!' : '¡Asesor Creado!'}</h3>
                     <div className="mt-2 px-7 py-3">
                         <p className="text-sm text-gray-500 mb-4">
-                            Se ha creado el usuario de acceso. Por favor comparte estas credenciales con el asesor:
+                            {advisor 
+                              ? 'La contraseña ha sido actualizada. Comparte las nuevas credenciales con el asesor:'
+                              : 'Se ha creado el usuario de acceso. Por favor comparte estas credenciales con el asesor:'
+                            }
                         </p>
                         <p className="text-left font-bold text-gray-700">Usuario:</p>
                         <p className="text-left bg-gray-100 p-2 rounded mb-2">{formData.correo}</p>
-                        <p className="text-left font-bold text-gray-700">Contraseña Temporal:</p>
+                        <p className="text-left font-bold text-gray-700">Contraseña:</p>
                         <div className="flex items-center bg-gray-100 p-2 rounded mb-4">
                             <span className="flex-grow text-left font-mono">{tempPassword}</span>
                             <button onClick={handleCopyPassword} className="text-blue-500 hover:text-blue-700 ml-2" title="Copiar">
@@ -168,6 +187,18 @@ const EditAdvisorModal: React.FC<EditAdvisorModalProps> = ({ advisor, onClose, o
                   required
                 />
                 <p className="text-xs text-gray-500 mb-3">Mínimo 8 caracteres, al menos una letra y un número.</p>
+              </>
+            )}
+            {advisor && (
+              <>
+                <input
+                  type="password"
+                  placeholder="Nueva contraseña (dejar vacío para no cambiar)"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full p-2 mb-1 border border-gray-300 rounded-md"
+                />
+                <p className="text-xs text-gray-500 mb-3">Dejar vacío para mantener la contraseña actual. Mínimo 8 caracteres, al menos una letra y un número.</p>
               </>
             )}
             <div className="items-center px-4 py-3">

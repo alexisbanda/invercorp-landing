@@ -149,6 +149,7 @@ export interface ProgrammedSaving {
 
 export interface Advisor {
     id: string;
+    uid?: string;
     nombre: string;
     telefono: string;
     correo: string;
