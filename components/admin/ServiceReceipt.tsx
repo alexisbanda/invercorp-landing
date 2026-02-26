@@ -15,6 +15,7 @@ export interface ServiceReceiptProps {
     totalAmount: number;
     signerName?: string; // Nombre debajo de la firma del cliente
     label?: string;
+    transferNumber?: string; // Número de comprobante de transferencia
 }
 
 export const ServiceReceipt: React.FC<ServiceReceiptProps> = ({
@@ -25,7 +26,8 @@ export const ServiceReceipt: React.FC<ServiceReceiptProps> = ({
     items,
     totalAmount,
     signerName,
-    label
+    label,
+    transferNumber
 }) => {
     return (
         <div className="bg-white p-6 max-w-[21cm] mx-auto text-black font-sans border border-transparent relative">
@@ -101,6 +103,16 @@ export const ServiceReceipt: React.FC<ServiceReceiptProps> = ({
                         </tr>
                     </tfoot>
                 </table>
+            </div>
+
+            {/* Forma de Pago */}
+            <div className="mb-4 text-xs flex items-center gap-2">
+                <span className="font-bold">FORMA DE PAGO:</span>
+                {transferNumber ? (
+                    <span>Transferencia — Nro. Comprobante: <strong>{transferNumber}</strong></span>
+                ) : (
+                    <span>Efectivo</span>
+                )}
             </div>
 
             {/* Footer / Signatures */}

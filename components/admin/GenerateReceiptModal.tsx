@@ -2,6 +2,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import { addReceipt, voidReceipt, ServiceReceipt } from '../../services/nonFinancialService';
 import { ServiceReceipt as ServiceReceiptComponent, ServiceReceiptProps } from './ServiceReceipt';
 import toast from 'react-hot-toast';
+import { useAuth } from '../../contexts/AuthContext';
+import { UserRole } from '../../types';
 
 interface ReceiptInitialData {
     concept: string;
@@ -32,8 +34,12 @@ export const GenerateReceiptModal: React.FC<GenerateReceiptModalProps> = ({
     onSave,
     onVoid
 }) => {
+    const { userProfile } = useAuth();
+    const isAdmin = userProfile?.role === UserRole.ADMIN;
+
     const [amount, setAmount] = useState<string>('');
     const [concept, setConcept] = useState<string>('');
+    const [transferNumber, setTransferNumber] = useState<string>('');
     const [showPreview, setShowPreview] = useState(false);
     const [isProcessing, setIsProcessing] = useState(false);
     
@@ -58,11 +64,13 @@ export const GenerateReceiptModal: React.FC<GenerateReceiptModalProps> = ({
             if (activeReceipt) {
                 setAmount(activeReceipt.amount.toString());
                 setConcept(activeReceipt.concept);
+                setTransferNumber(activeReceipt.transferNumber || '');
                 setShowPreview(true); // Default to preview if already generated
             } else {
                 // If no active receipt, populate with initial data
                 setAmount(initialData.amount ? initialData.amount.toString() : '');
                 setConcept(initialData.concept);
+                setTransferNumber('');
                 setShowPreview(false);
             }
         }
@@ -187,7 +195,7 @@ export const GenerateReceiptModal: React.FC<GenerateReceiptModalProps> = ({
             if (onSave) {
                 await onSave(parseFloat(amount), concept);
             } else {
-                await addReceipt(initialData.serviceId, parseFloat(amount), concept);
+                await addReceipt(initialData.serviceId, parseFloat(amount), concept, transferNumber || undefined);
             }
             toast.success('Recibo generado y guardado correctamente');
             if (onReceiptGenerated) onReceiptGenerated();
@@ -241,7 +249,8 @@ export const GenerateReceiptModal: React.FC<GenerateReceiptModalProps> = ({
             }
         ],
         totalAmount: currentAmount,
-        signerName: 'Invercop Admin' // Or user name if available
+        signerName: 'Invercop Admin', // Or user name if available
+        transferNumber: activeReceipt?.transferNumber || transferNumber || undefined
     };
 
     return (
@@ -301,6 +310,19 @@ export const GenerateReceiptModal: React.FC<GenerateReceiptModalProps> = ({
                                     className="w-full p-2 border border-gray-300 rounded-md disabled:bg-gray-100 disabled:text-gray-500"
                                 />
                             </div>
+                            {isAdmin && (
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Nro. Comprobante de Transferencia <span className="text-gray-400 font-normal">(Opcional)</span></label>
+                                <input
+                                    type="text"
+                                    value={transferNumber}
+                                    onChange={(e) => setTransferNumber(e.target.value)}
+                                    placeholder="Ej: 12345678 (dejar vacío si es pago en efectivo)"
+                                    disabled={!!activeReceipt}
+                                    className="w-full p-2 border border-gray-300 rounded-md disabled:bg-gray-100 disabled:text-gray-500"
+                                />
+                            </div>
+                            )}
                             <button
                                 onClick={() => setShowPreview(true)}
                                 disabled={(!amount && !activeReceipt)}

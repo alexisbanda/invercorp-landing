@@ -7,6 +7,7 @@ import {
     orderBy
 } from 'firebase/firestore';
 import { db, auth } from '../firebase-config';
+import { isTransferNumberUsed } from './nonFinancialService';
 
 export interface GroupedReceiptItem {
     serviceId: string; // Reference to the original service
@@ -24,6 +25,7 @@ export interface GroupedReceipt {
     date: Timestamp;
     issuedBy: string;
     status: 'valid' | 'void';
+    transferNumber?: string; // Número de comprobante de transferencia (opcional)
     voidReason?: string;
     voidedBy?: string;
     voidDate?: Timestamp;
@@ -32,12 +34,19 @@ export interface GroupedReceipt {
 export const createGroupedReceipt = async (
     clientName: string,
     clientId: string,
-    items: GroupedReceiptItem[]
+    items: GroupedReceiptItem[],
+    transferNumber?: string
 ): Promise<GroupedReceipt> => {
     const currentUser = auth.currentUser;
     if (!currentUser) throw new Error('Usuario no autenticado');
 
     if (items.length === 0) throw new Error('No items to receipt');
+
+    // Validar unicidad del número de comprobante
+    if (transferNumber) {
+        const used = await isTransferNumberUsed(transferNumber);
+        if (used) throw new Error(`El número de comprobante "${transferNumber}" ya está registrado en otro recibo.`);
+    }
 
     const totalAmount = items.reduce((sum, item) => sum + item.amount, 0);
     
@@ -57,7 +66,8 @@ export const createGroupedReceipt = async (
         totalAmount,
         date: Timestamp.now(),
         issuedBy: currentUser.email || 'unknown',
-        status: 'valid'
+        status: 'valid',
+        ...(transferNumber ? { transferNumber } : {})
     };
 
     const docRef = await addDoc(collection(db, 'grouped_receipts'), newReceiptData);

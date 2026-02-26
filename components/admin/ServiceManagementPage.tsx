@@ -200,6 +200,7 @@ const ServiceManagementPage: React.FC = () => {
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estado General</th>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estado Actual</th>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha Solicitud</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Comprobante</th>
                                 <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
                             </tr>
                         </thead>
@@ -225,6 +226,15 @@ const ServiceManagementPage: React.FC = () => {
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{service.estadoActual}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                         {service.fechaSolicitud.toDate().toLocaleDateString('es-EC')}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                                        {(() => {
+                                            const activeReceipt = service.recibos?.filter(r => r.status === 'valid').sort((a, b) => b.date.seconds - a.date.seconds)[0];
+                                            if (!activeReceipt) return <span className="text-gray-400">—</span>;
+                                            return activeReceipt.transferNumber 
+                                                ? <span className="text-blue-700 font-medium" title="Nro. Transferencia">{activeReceipt.transferNumber}</span>
+                                                : <span className="text-gray-500">Efectivo</span>;
+                                        })()}
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-center">
                                         <div className="flex justify-center gap-2">
@@ -265,7 +275,7 @@ const ServiceManagementPage: React.FC = () => {
                                 </tr>
                             )) : (
                                 <tr>
-                                    <td colSpan={7} className="text-center py-10 text-gray-500">
+                                    <td colSpan={8} className="text-center py-10 text-gray-500">
                                         No se encontraron servicios que coincidan con los filtros.
                                     </td>
                                 </tr>

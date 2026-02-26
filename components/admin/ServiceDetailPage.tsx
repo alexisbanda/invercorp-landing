@@ -3,12 +3,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import toast, { Toaster } from 'react-hot-toast';
-import { getServiceById, updateServiceStatus, updateServiceValue, NonFinancialService, Attachment } from '../../services/nonFinancialService';
+import { getServiceById, updateServiceStatus, updateServiceValue, updateReceiptTransferNumber, NonFinancialService, Attachment } from '../../services/nonFinancialService';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { storage } from '../../firebase-config';
 import { getUserProfile } from '../../services/userService';
-import { UserProfile } from '../../types';
+import { UserProfile, UserRole } from '../../types';
 import { formatServiceType } from '../../services/serviceDefinitions';
+import { useAuth } from '../../contexts/AuthContext';
 
 
 
@@ -18,6 +19,8 @@ import { StatusHistory } from '../shared/StatusHistory';
 import { GenerateReceiptModal } from './GenerateReceiptModal';
 
 const ServiceDetailPage: React.FC = () => {
+    const { userProfile: authProfile } = useAuth();
+    const isAdmin = authProfile?.role === UserRole.ADMIN;
     const { serviceId } = useParams<{ serviceId: string }>();
     const [service, setService] = useState<NonFinancialService | null>(null);
     const [client, setClient] = useState<UserProfile | null>(null);
@@ -31,6 +34,10 @@ const ServiceDetailPage: React.FC = () => {
     // Estado para editar el valor del servicio
     const [isEditingValue, setIsEditingValue] = useState(false);
     const [editedValue, setEditedValue] = useState<string>('');
+
+    // Estado para editar el número de comprobante
+    const [isEditingTransfer, setIsEditingTransfer] = useState(false);
+    const [editedTransferNumber, setEditedTransferNumber] = useState<string>('');
 
     const handleUpdateValue = async () => {
         if (!service) return;
@@ -213,6 +220,72 @@ const ServiceDetailPage: React.FC = () => {
                                 </button>
                             )}
                         </div>
+
+                        {/* Forma de Pago */}
+                        {(() => {
+                            const activeReceipt = service.recibos?.filter(r => r.status === 'valid').sort((a, b) => b.date.seconds - a.date.seconds)[0];
+                            if (!activeReceipt) return null;
+                            return (
+                                <div className="mb-6 bg-gray-50 p-4 rounded-md flex justify-between items-center">
+                                    <div className="flex items-center gap-3">
+                                        <svg className="w-5 h-5 text-gray-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                                        </svg>
+                                        <div>
+                                            <h3 className="font-semibold text-gray-700 text-sm">Forma de Pago</h3>
+                                            {!isEditingTransfer ? (
+                                                activeReceipt.transferNumber ? (
+                                                    <p className="text-gray-600">Transferencia — <span className="font-medium text-blue-700">Nro. {activeReceipt.transferNumber}</span></p>
+                                                ) : (
+                                                    <p className="text-gray-600">Efectivo</p>
+                                                )
+                                            ) : (
+                                                <div className="flex gap-2 mt-1">
+                                                    <input
+                                                        type="text"
+                                                        value={editedTransferNumber}
+                                                        onChange={(e) => setEditedTransferNumber(e.target.value)}
+                                                        placeholder="Nro. comprobante (vacío = efectivo)"
+                                                        className="p-1 border rounded w-56 text-sm"
+                                                    />
+                                                    <button
+                                                        onClick={async () => {
+                                                            try {
+                                                                await updateReceiptTransferNumber(service.id, activeReceipt.id, editedTransferNumber);
+                                                                setIsEditingTransfer(false);
+                                                                toast.success('Comprobante actualizado');
+                                                                fetchService();
+                                                            } catch (err) {
+                                                                console.error(err);
+                                                                toast.error('Error al actualizar');
+                                                            }
+                                                        }}
+                                                        className="text-green-600 hover:text-green-800"
+                                                    >
+                                                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" /></svg>
+                                                    </button>
+                                                    <button onClick={() => setIsEditingTransfer(false)} className="text-red-500 hover:text-red-700">
+                                                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                    {!isEditingTransfer && isAdmin && (
+                                        <button
+                                            onClick={() => {
+                                                setEditedTransferNumber(activeReceipt.transferNumber || '');
+                                                setIsEditingTransfer(true);
+                                            }}
+                                            className="text-gray-500 hover:text-gray-700 flex items-center gap-1 text-sm font-medium"
+                                        >
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                                            Editar
+                                        </button>
+                                    )}
+                                </div>
+                            );
+                        })()}
 
                         {service.descripcionCliente && (
                             <div className="mb-6 bg-gray-50 p-4 rounded-md">

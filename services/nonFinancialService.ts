@@ -59,17 +59,58 @@ export interface ServiceReceipt {
     date: Timestamp;
     issuedBy: string;
     status: 'valid' | 'void';
+    transferNumber?: string; // Número de comprobante de transferencia (opcional, pago en efectivo no lo requiere)
     voidReason?: string;
     voidedBy?: string;
     voidDate?: Timestamp;
 }
 
 /**
+ * Verifica si un número de comprobante de transferencia ya fue registrado en algún recibo.
+ * Busca en recibos individuales (servicios) y recibos agrupados (grouped_receipts).
+ * @param transferNumber El número de comprobante a verificar.
+ * @param excludeReceiptId ID de recibo a excluir (para edición).
+ * @returns true si el número ya está en uso.
+ */
+export const isTransferNumberUsed = async (transferNumber: string, excludeReceiptId?: string): Promise<boolean> => {
+    if (!transferNumber) return false;
+
+    // 1. Buscar en recibos individuales (dentro de documentos de servicios)
+    const serviciosSnapshot = await getDocs(collection(db, 'servicios'));
+    for (const serviceDoc of serviciosSnapshot.docs) {
+        const data = serviceDoc.data() as NonFinancialService;
+        const recibos = data.recibos || [];
+        for (const recibo of recibos) {
+            if (recibo.status === 'valid' && recibo.transferNumber === transferNumber && recibo.id !== excludeReceiptId) {
+                return true;
+            }
+        }
+    }
+
+    // 2. Buscar en recibos agrupados
+    const groupedSnapshot = await getDocs(collection(db, 'grouped_receipts'));
+    for (const groupedDoc of groupedSnapshot.docs) {
+        const data = groupedDoc.data();
+        if (data.status === 'valid' && data.transferNumber === transferNumber && groupedDoc.id !== excludeReceiptId) {
+            return true;
+        }
+    }
+
+    return false;
+};
+
+/**
  * Agrega un nuevo recibo al servicio.
  */
-export const addReceipt = async (serviceId: string, amount: number, concept: string): Promise<ServiceReceipt> => {
+export const addReceipt = async (serviceId: string, amount: number, concept: string, transferNumber?: string): Promise<ServiceReceipt> => {
     const currentUser = auth.currentUser;
     if (!currentUser) throw new Error('Usuario no autenticado');
+
+    // Validar unicidad del número de comprobante
+    if (transferNumber) {
+        const used = await isTransferNumberUsed(transferNumber);
+        if (used) throw new Error(`El número de comprobante "${transferNumber}" ya está registrado en otro recibo.`);
+    }
 
     const serviceRef = doc(db, 'servicios', serviceId);
     const serviceDoc = await getDoc(serviceRef);
@@ -93,7 +134,8 @@ export const addReceipt = async (serviceId: string, amount: number, concept: str
         concept,
         date: Timestamp.now(),
         issuedBy: currentUser.email || 'unknown',
-        status: 'valid'
+        status: 'valid',
+        ...(transferNumber ? { transferNumber } : {})
     };
 
     await updateDoc(serviceRef, {
@@ -137,6 +179,44 @@ export const voidReceipt = async (serviceId: string, receiptId: string, reason: 
         voidReason: reason,
         voidedBy: currentUser.email || 'unknown',
         voidDate: Timestamp.now()
+    };
+
+    await updateDoc(serviceRef, {
+        recibos: updatedReceipts
+    });
+};
+
+/**
+ * Actualiza el número de comprobante de transferencia de un recibo.
+ * @param serviceId El ID del servicio.
+ * @param receiptId El ID del recibo a actualizar.
+ * @param transferNumber El nuevo número de comprobante (vacío para quitar).
+ */
+export const updateReceiptTransferNumber = async (serviceId: string, receiptId: string, transferNumber: string): Promise<void> => {
+    const currentUser = auth.currentUser;
+    if (!currentUser) throw new Error('Usuario no autenticado');
+
+    // Validar unicidad del número de comprobante
+    if (transferNumber) {
+        const used = await isTransferNumberUsed(transferNumber, receiptId);
+        if (used) throw new Error(`El número de comprobante "${transferNumber}" ya está registrado en otro recibo.`);
+    }
+
+    const serviceRef = doc(db, 'servicios', serviceId);
+    const serviceDoc = await getDoc(serviceRef);
+
+    if (!serviceDoc.exists()) throw new Error('Servicio no encontrado');
+
+    const serviceData = serviceDoc.data() as NonFinancialService;
+    const currentReceipts = serviceData.recibos || [];
+
+    const receiptIndex = currentReceipts.findIndex(r => r.id === receiptId);
+    if (receiptIndex === -1) throw new Error('Recibo no encontrado');
+
+    const updatedReceipts = [...currentReceipts];
+    updatedReceipts[receiptIndex] = {
+        ...updatedReceipts[receiptIndex],
+        transferNumber: transferNumber || undefined
     };
 
     await updateDoc(serviceRef, {

@@ -3,6 +3,8 @@ import toast from 'react-hot-toast';
 import { NonFinancialService } from '../../services/nonFinancialService';
 import { createGroupedReceipt, GroupedReceipt, GroupedReceiptItem } from '../../services/receiptService';
 import { ServiceReceipt as ServiceReceiptComponent, ServiceReceiptProps } from './ServiceReceipt';
+import { useAuth } from '../../contexts/AuthContext';
+import { UserRole } from '../../types';
 
 interface GenerateGroupReceiptModalProps {
     isOpen: boolean;
@@ -17,9 +19,13 @@ export const GenerateGroupReceiptModal: React.FC<GenerateGroupReceiptModalProps>
     selectedServices,
     onReceiptGenerated
 }) => {
+    const { userProfile } = useAuth();
+    const isAdmin = userProfile?.role === UserRole.ADMIN;
+
     // State to hold amounts for each service. Keyed by service ID.
     const [amounts, setAmounts] = useState<Record<string, string>>({});
     const [concepts, setConcepts] = useState<Record<string, string>>({});
+    const [transferNumber, setTransferNumber] = useState<string>('');
     
     // The generated receipt to show and print
     const [generatedReceipt, setGeneratedReceipt] = useState<GroupedReceipt | null>(null);
@@ -40,6 +46,7 @@ export const GenerateGroupReceiptModal: React.FC<GenerateGroupReceiptModalProps>
             });
             setAmounts(initialAmounts);
             setConcepts(initialConcepts);
+            setTransferNumber('');
             setGeneratedReceipt(null);
         }
     }, [isOpen, selectedServices]);
@@ -83,7 +90,8 @@ export const GenerateGroupReceiptModal: React.FC<GenerateGroupReceiptModalProps>
             const receipt = await createGroupedReceipt(
                 firstService.userName, // Client Name
                 firstService.clienteId, // Client CI/ID
-                items
+                items,
+                transferNumber || undefined
             );
 
             setGeneratedReceipt(receipt);
@@ -158,7 +166,8 @@ export const GenerateGroupReceiptModal: React.FC<GenerateGroupReceiptModalProps>
         })),
         totalAmount: generatedReceipt.totalAmount,
         signerName: 'Invercop Admin',
-        label: 'RECIBO AGRUPADO'
+        label: 'RECIBO AGRUPADO',
+        transferNumber: generatedReceipt.transferNumber
     } : undefined;
 
     return (
@@ -217,6 +226,19 @@ export const GenerateGroupReceiptModal: React.FC<GenerateGroupReceiptModalProps>
                                     ${Object.values(amounts).reduce((sum, val) => sum + (parseFloat(val) || 0), 0).toFixed(2)}
                                 </span>
                             </div>
+
+                            {isAdmin && (
+                            <div className="mt-4">
+                                <label className="block text-xs font-medium text-gray-500 mb-1">Nro. Comprobante de Transferencia <span className="text-gray-400 font-normal">(Opcional)</span></label>
+                                <input
+                                    type="text"
+                                    value={transferNumber}
+                                    onChange={(e) => setTransferNumber(e.target.value)}
+                                    placeholder="Ej: 12345678 (dejar vacío si es pago en efectivo)"
+                                    className="w-full p-2 border border-gray-300 rounded text-sm"
+                                />
+                            </div>
+                            )}
 
                             <div className="mt-6 flex justify-end gap-3">
                                 <button
