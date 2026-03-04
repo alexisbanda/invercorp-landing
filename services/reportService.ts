@@ -228,7 +228,7 @@ export interface AdvisorStats {
     effectiveness: number;
 }
 
-export const getAdvisorStats = async (month?: Date | null, includeFinished: boolean = false): Promise<AdvisorStats[]> => {
+export const getAdvisorStats = async (startDate?: Date | null, endDate?: Date | null, includeFinished: boolean = false): Promise<AdvisorStats[]> => {
     const [savings, services, advisors] = await Promise.all([
         getAllProgrammedSavings(),
         getAllServices(),
@@ -250,8 +250,9 @@ export const getAdvisorStats = async (month?: Date | null, includeFinished: bool
         };
     });
 
-    const startOfMonth = month ? new Date(month.getFullYear(), month.getMonth(), 1) : null;
-    const endOfMonth = month ? new Date(month.getFullYear(), month.getMonth() + 1, 0, 23, 59, 59) : null;
+    // Normalize date range boundaries
+    const rangeStart = startDate ? new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate(), 0, 0, 0) : null;
+    const rangeEnd = endDate ? new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate(), 23, 59, 59) : null;
 
     // Aggregate Savings
     savings.forEach(s => {
@@ -264,7 +265,7 @@ export const getAdvisorStats = async (month?: Date | null, includeFinished: bool
         if (!isActive && !(includeFinished && isFinished)) return;
 
         // Date Filter
-        if (month && startOfMonth && endOfMonth) {
+        if (rangeStart || rangeEnd) {
             // Using fechaInicioPlan for date filtering
             let date: Date | null = null;
             if (s.fechaInicioPlan) {
@@ -274,7 +275,9 @@ export const getAdvisorStats = async (month?: Date | null, includeFinished: bool
                     date = new Date(s.fechaInicioPlan as any);
                  }
             }
-            if (!date || date < startOfMonth || date > endOfMonth) return;
+            if (!date) return;
+            if (rangeStart && date < rangeStart) return;
+            if (rangeEnd && date > rangeEnd) return;
         }
 
         statsMap[s.advisorId].activeSavingsCount++;
@@ -292,7 +295,7 @@ export const getAdvisorStats = async (month?: Date | null, includeFinished: bool
         if (!isActive && !(includeFinished && isFinished)) return;
         
         // Date Filter
-        if (month && startOfMonth && endOfMonth) {
+        if (rangeStart || rangeEnd) {
             // Using fechaSolicitud for date filtering
             // Handle Firestore Timestamp or Date object
             let date: Date | null = null;
@@ -303,8 +306,9 @@ export const getAdvisorStats = async (month?: Date | null, includeFinished: bool
                     date = new Date(s.fechaSolicitud as any);
                  }
             }
-
-            if (!date || date < startOfMonth || date > endOfMonth) return;
+            if (!date) return;
+            if (rangeStart && date < rangeStart) return;
+            if (rangeEnd && date > rangeEnd) return;
         }
 
         if (isActive) {

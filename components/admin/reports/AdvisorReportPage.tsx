@@ -14,7 +14,9 @@ export const AdvisorReportPage: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
 
-    const [selectedMonth, setSelectedMonth] = useState<string>('');
+    const [startDate, setStartDate] = useState<string>('');
+    const [endDate, setEndDate] = useState<string>('');
+    const [exportingAll, setExportingAll] = useState(false);
     
     // Modal State
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -27,13 +29,14 @@ export const AdvisorReportPage: React.FC = () => {
     useEffect(() => {
         (async () => {
             setLoading(true);
-            const monthDate = selectedMonth ? new Date(selectedMonth + '-01T00:00:00') : null;
+            const parsedStart = startDate ? new Date(startDate + 'T00:00:00') : null;
+            const parsedEnd = endDate ? new Date(endDate + 'T23:59:59') : null;
             // Always include finished as per requirement
-            const data = await getAdvisorStats(monthDate, true);
+            const data = await getAdvisorStats(parsedStart, parsedEnd, true);
             setAdvisors(data);
             setLoading(false);
         })();
-    }, [selectedMonth]);
+    }, [startDate, endDate]);
 
     const filteredAdvisors = advisors.filter(advisor => 
         advisor.advisorName.toLowerCase().includes(searchTerm.toLowerCase())
@@ -64,9 +67,9 @@ export const AdvisorReportPage: React.FC = () => {
                     if (!isActive && !isFinished) return false;
 
                     // Date Filter
-                    if (selectedMonth) {
-                         const startOfMonth = new Date(selectedMonth + '-01T00:00:00');
-                         const endOfMonth = new Date(startOfMonth.getFullYear(), startOfMonth.getMonth() + 1, 0, 23, 59, 59);
+                    if (startDate || endDate) {
+                         const rangeStart = startDate ? new Date(startDate + 'T00:00:00') : null;
+                         const rangeEnd = endDate ? new Date(endDate + 'T23:59:59') : null;
                          
                          let date: Date | null = null;
                          if (s.fechaInicioPlan) {
@@ -77,7 +80,9 @@ export const AdvisorReportPage: React.FC = () => {
                               }
                          }
 
-                         if (!date || date < startOfMonth || date > endOfMonth) return false;
+                         if (!date) return false;
+                         if (rangeStart && date < rangeStart) return false;
+                         if (rangeEnd && date > rangeEnd) return false;
                     }
 
                     return true;
@@ -113,9 +118,9 @@ export const AdvisorReportPage: React.FC = () => {
                  if (!isActive && !isFinished) return false;
 
                  // Date Filter
-                 if (selectedMonth) {
-                    const startOfMonth = new Date(selectedMonth + '-01T00:00:00');
-                    const endOfMonth = new Date(startOfMonth.getFullYear(), startOfMonth.getMonth() + 1, 0, 23, 59, 59);
+                 if (startDate || endDate) {
+                    const rangeStart = startDate ? new Date(startDate + 'T00:00:00') : null;
+                    const rangeEnd = endDate ? new Date(endDate + 'T23:59:59') : null;
                     
                     let date: Date | null = null;
                     if (s.fechaSolicitud) {
@@ -125,7 +130,9 @@ export const AdvisorReportPage: React.FC = () => {
                             date = new Date(s.fechaSolicitud as any);
                          }
                     }
-                    if (!date || date < startOfMonth || date > endOfMonth) return false;
+                    if (!date) return false;
+                    if (rangeStart && date < rangeStart) return false;
+                    if (rangeEnd && date > rangeEnd) return false;
                  }
                  
                  return true;
@@ -193,41 +200,164 @@ export const AdvisorReportPage: React.FC = () => {
         }
     };
 
+    const handleExportAll = async () => {
+        setExportingAll(true);
+        try {
+            const [allSavings, allServicesData, allClientsData] = await Promise.all([
+                getAllProgrammedSavings(),
+                getAllServices(),
+                getAllClients()
+            ]);
+
+            const clientMap = new Map(allClientsData.map(c => [c.id, c.name]));
+            const advisorMap = new Map(advisors.map(a => [a.advisorId, a.advisorName]));
+
+            const rangeStart = startDate ? new Date(startDate + 'T00:00:00') : null;
+            const rangeEnd = endDate ? new Date(endDate + 'T23:59:59') : null;
+
+            const csvRows: Record<string, any>[] = [];
+
+            // Process savings
+            allSavings.forEach(s => {
+                if (!s.advisorId || !advisorMap.has(s.advisorId)) return;
+                const isActive = s.estadoPlan === ProgrammedSavingStatus.ACTIVO;
+                const isFinished = s.estadoPlan === ProgrammedSavingStatus.COMPLETADO;
+                if (!isActive && !isFinished) return;
+
+                let date: Date | null = null;
+                if (s.fechaInicioPlan) {
+                    if (typeof (s.fechaInicioPlan as any).toDate === 'function') {
+                        date = (s.fechaInicioPlan as any).toDate();
+                    } else {
+                        date = new Date(s.fechaInicioPlan as any);
+                    }
+                }
+                if (rangeStart || rangeEnd) {
+                    if (!date) return;
+                    if (rangeStart && date < rangeStart) return;
+                    if (rangeEnd && date > rangeEnd) return;
+                }
+
+                csvRows.push({
+                    'Asesor': advisorMap.get(s.advisorId) || '',
+                    'Tipo': 'Ahorro',
+                    'Nombre/Plan': s.nombrePlan,
+                    'Cliente': clientMap.get(s.clienteId) || 'Desconocido',
+                    'Monto': s.saldoActual || 0,
+                    'Meta': s.montoMeta,
+                    'Estado': s.estadoPlan,
+                    'Fecha': date ? date.toLocaleDateString() : ''
+                });
+            });
+
+            // Process services
+            allServicesData.forEach(s => {
+                if (!s.advisorId || !advisorMap.has(s.advisorId)) return;
+                const isActive = s.estadoGeneral === 'EN_EJECUCION' || s.estadoGeneral === 'SOLICITADO';
+                const isFinished = s.estadoGeneral === 'FINALIZADO';
+                if (!isActive && !isFinished) return;
+
+                let date: Date | null = null;
+                if (s.fechaSolicitud) {
+                    if (typeof (s.fechaSolicitud as any).toDate === 'function') {
+                        date = (s.fechaSolicitud as any).toDate();
+                    } else {
+                        date = new Date(s.fechaSolicitud as any);
+                    }
+                }
+                if (rangeStart || rangeEnd) {
+                    if (!date) return;
+                    if (rangeStart && date < rangeStart) return;
+                    if (rangeEnd && date > rangeEnd) return;
+                }
+
+                const totalCost = (s.recibos || [])
+                    .filter(r => r.status === 'valid')
+                    .reduce((sum, r) => sum + r.amount, 0);
+
+                csvRows.push({
+                    'Asesor': advisorMap.get(s.advisorId) || '',
+                    'Tipo': 'Servicio',
+                    'Nombre/Plan': s.tipoDeServicio,
+                    'Cliente': s.userName,
+                    'Monto': totalCost,
+                    'Meta': '',
+                    'Estado': s.estadoGeneral,
+                    'Fecha': date ? date.toLocaleDateString() : ''
+                });
+            });
+
+            const csv = Papa.unparse(csvRows);
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const rangeSuffix = startDate && endDate ? `${startDate}_a_${endDate}` : 'todos';
+            const fileName = `Reporte_Asesores_${rangeSuffix}.csv`;
+            const url = URL.createObjectURL(blob);
+            link.setAttribute('href', url);
+            link.setAttribute('download', fileName);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        } catch (error) {
+            console.error('Error exporting all advisors:', error);
+        } finally {
+            setExportingAll(false);
+        }
+    };
+
     if (loading) return <div className="p-8 text-center text-gray-500">Cargando reporte de asesores...</div>;
 
     return (
         <div className="p-6 max-w-7xl mx-auto">
             <h1 className="text-3xl font-bold text-gray-800 mb-6">Reporte de Asesores</h1>
             
-            <div className="mb-6 bg-white p-4 rounded-lg shadow-sm border border-gray-100 flex justify-between items-center">
-                <div className="flex space-x-4 w-full max-w-2xl">
+            <div className="mb-6 bg-white p-4 rounded-lg shadow-sm border border-gray-100">
+                <div className="flex flex-wrap gap-4 items-center">
                     <input 
                         type="text" 
                         placeholder="Buscar asesor..." 
-                        className="border border-gray-300 rounded px-4 py-2 w-full focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        className="border border-gray-300 rounded px-4 py-2 flex-1 min-w-[200px] focus:outline-none focus:ring-2 focus:ring-indigo-500"
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                     />
                     <div className="flex items-center space-x-2 whitespace-nowrap">
-                        <span className="text-gray-600 text-sm">Mes:</span>
+                        <span className="text-gray-600 text-sm">Desde:</span>
                         <input 
-                            type="month" 
+                            type="date" 
                             className="border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                            value={selectedMonth}
-                            onChange={(e) => setSelectedMonth(e.target.value)}
+                            value={startDate}
+                            onChange={(e) => setStartDate(e.target.value)}
                         />
-                         {selectedMonth && (
-                            <button 
-                                onClick={() => setSelectedMonth('')}
-                                className="text-sm text-red-500 hover:text-red-700"
-                            >
-                                Limpiar
-                            </button>
-                        )}
                     </div>
-                </div>
-                <div className="text-gray-500 text-sm whitespace-nowrap ml-4">
-                    Total: {filteredAdvisors.length} asesores
+                    <div className="flex items-center space-x-2 whitespace-nowrap">
+                        <span className="text-gray-600 text-sm">Hasta:</span>
+                        <input 
+                            type="date" 
+                            className="border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            value={endDate}
+                            onChange={(e) => setEndDate(e.target.value)}
+                        />
+                    </div>
+                    {(startDate || endDate) && (
+                        <button 
+                            onClick={() => { setStartDate(''); setEndDate(''); }}
+                            className="text-sm text-red-500 hover:text-red-700"
+                        >
+                            Limpiar
+                        </button>
+                    )}
+                    <div className="text-gray-500 text-sm whitespace-nowrap">
+                        Total: {filteredAdvisors.length} asesores
+                    </div>
+                    <button
+                        onClick={handleExportAll}
+                        disabled={exportingAll}
+                        className="ml-auto flex items-center text-sm bg-indigo-600 text-white hover:bg-indigo-700 disabled:bg-indigo-300 px-4 py-2 rounded font-medium transition-colors"
+                    >
+                        <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                        {exportingAll ? 'Exportando...' : 'Exportar Todo CSV'}
+                    </button>
                 </div>
             </div>
 
