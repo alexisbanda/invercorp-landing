@@ -14,8 +14,13 @@ export const AdvisorReportPage: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
 
-    const [startDate, setStartDate] = useState<string>('');
-    const [endDate, setEndDate] = useState<string>('');
+    const now = new Date();
+    const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+    const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    const formatDate = (d: Date) => d.toISOString().split('T')[0];
+
+    const [startDate, setStartDate] = useState<string>(formatDate(firstDay));
+    const [endDate, setEndDate] = useState<string>(formatDate(lastDay));
     const [exportingAll, setExportingAll] = useState(false);
     
     // Modal State

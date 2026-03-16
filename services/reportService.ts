@@ -4,6 +4,15 @@ import { getAllServices } from './nonFinancialService';
 import { getAllAdvisors } from './advisorService';
 import { ProgrammedSavingStatus } from '../types';
 
+// Helper: safely convert Firestore Timestamp or Date to a JS Date
+const toDateSafe = (val: any): Date | null => {
+    if (!val) return null;
+    if (typeof val.toDate === 'function') return val.toDate();
+    if (val instanceof Date) return val;
+    const d = new Date(val);
+    return isNaN(d.getTime()) ? null : d;
+};
+
 // --- OLD LOAN REPORTS (KEPT FOR REFERENCE OR LEGACY USE) ---
 
 export interface PortfolioOverview {
@@ -160,11 +169,33 @@ export interface DashboardKPIs {
     };
 }
 
-export const getDashboardKPIs = async (): Promise<DashboardKPIs> => {
-    const [savings, services] = await Promise.all([
+export const getDashboardKPIs = async (startDate?: Date | null, endDate?: Date | null): Promise<DashboardKPIs> => {
+    const [allSavings, allServices] = await Promise.all([
         getAllProgrammedSavings(),
         getAllServices()
     ]);
+
+    // Apply date filter if provided
+    const rangeStart = startDate ? new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate(), 0, 0, 0) : null;
+    const rangeEnd = endDate ? new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate(), 23, 59, 59) : null;
+
+    const savings = allSavings.filter(s => {
+        if (!rangeStart && !rangeEnd) return true;
+        const d = toDateSafe(s.fechaCreacion);
+        if (!d) return false;
+        if (rangeStart && d < rangeStart) return false;
+        if (rangeEnd && d > rangeEnd) return false;
+        return true;
+    });
+
+    const services = allServices.filter(s => {
+        if (!rangeStart && !rangeEnd) return true;
+        const d = toDateSafe(s.fechaSolicitud);
+        if (!d) return false;
+        if (rangeStart && d < rangeStart) return false;
+        if (rangeEnd && d > rangeEnd) return false;
+        return true;
+    });
 
     // Savings KPIs
     const activeSavings = savings.filter(s => s.estadoPlan === ProgrammedSavingStatus.ACTIVO);
@@ -179,8 +210,6 @@ export const getDashboardKPIs = async (): Promise<DashboardKPIs> => {
     const activeServices = services.filter(s => s.estadoGeneral === 'EN_EJECUCION' || s.estadoGeneral === 'SOLICITADO');
     const completedServices = services.filter(s => {
         if (s.estadoGeneral !== 'FINALIZADO') return false;
-        // Check if completed this month
-        // We look for the last status history entry
         const lastEntry = s.historialDeEstados[s.historialDeEstados.length - 1];
         if (lastEntry && lastEntry.date) {
              const d = lastEntry.date.toDate();
@@ -368,12 +397,22 @@ export interface StatusDistribution {
     count: number;
 }
 
-export const getServiceStatsByStatus = async (): Promise<StatusDistribution[]> => {
-    const services = await getAllServices();
-    const counts: Record<string, number> = {};
+export const getServiceStatsByStatus = async (startDate?: Date | null, endDate?: Date | null): Promise<StatusDistribution[]> => {
+    const allServices = await getAllServices();
+    const rangeStart = startDate ? new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate(), 0, 0, 0) : null;
+    const rangeEnd = endDate ? new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate(), 23, 59, 59) : null;
 
+    const services = allServices.filter(s => {
+        if (!rangeStart && !rangeEnd) return true;
+        const d = toDateSafe(s.fechaSolicitud);
+        if (!d) return false;
+        if (rangeStart && d < rangeStart) return false;
+        if (rangeEnd && d > rangeEnd) return false;
+        return true;
+    });
+
+    const counts: Record<string, number> = {};
     services.forEach(s => {
-        // Group by 'estadoActual' which is the granular step
         const status = s.estadoActual || 'Desconocido';
         counts[status] = (counts[status] || 0) + 1;
     });
@@ -383,10 +422,21 @@ export const getServiceStatsByStatus = async (): Promise<StatusDistribution[]> =
         .sort((a, b) => b.count - a.count);
 };
 
-export const getSavingsStatsByStatus = async (): Promise<StatusDistribution[]> => {
-    const savings = await getAllProgrammedSavings();
-    const counts: Record<string, number> = {};
+export const getSavingsStatsByStatus = async (startDate?: Date | null, endDate?: Date | null): Promise<StatusDistribution[]> => {
+    const allSavings = await getAllProgrammedSavings();
+    const rangeStart = startDate ? new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate(), 0, 0, 0) : null;
+    const rangeEnd = endDate ? new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate(), 23, 59, 59) : null;
 
+    const savings = allSavings.filter(s => {
+        if (!rangeStart && !rangeEnd) return true;
+        const d = toDateSafe(s.fechaCreacion);
+        if (!d) return false;
+        if (rangeStart && d < rangeStart) return false;
+        if (rangeEnd && d > rangeEnd) return false;
+        return true;
+    });
+
+    const counts: Record<string, number> = {};
     savings.forEach(s => {
         const status = s.estadoPlan;
         counts[status] = (counts[status] || 0) + 1;

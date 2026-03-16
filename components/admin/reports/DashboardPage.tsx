@@ -6,13 +6,19 @@ export const DashboardPage: React.FC = () => {
     const [advisorStats, setAdvisorStats] = useState<AdvisorStats[]>([]);
     const [loading, setLoading] = useState(true);
 
+    // Current month boundaries
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0); // last day of current month
+    const monthLabel = now.toLocaleDateString('es-EC', { month: 'long', year: 'numeric' });
+
     useEffect(() => {
         (async () => {
             setLoading(true);
             try {
                 const [kpiData, advisorData] = await Promise.all([
-                    getDashboardKPIs(),
-                    getAdvisorStats()
+                    getDashboardKPIs(startOfMonth, endOfMonth),
+                    getAdvisorStats(startOfMonth, endOfMonth, true)
                 ]);
                 setKpis(kpiData);
                 // Sort advisors by total activity (savings + services) descending
@@ -32,7 +38,13 @@ export const DashboardPage: React.FC = () => {
 
     return (
         <div className="p-6 max-w-7xl mx-auto">
-            <h1 className="text-3xl font-bold text-gray-800 mb-8">Dashboard General</h1>
+            <div className="flex items-center justify-between mb-8">
+                <h1 className="text-3xl font-bold text-gray-800">Dashboard General</h1>
+                <span className="bg-indigo-100 text-indigo-800 px-3 py-1 rounded-full text-sm font-medium capitalize">
+                    <i className="fas fa-calendar-alt mr-1"></i>
+                    {monthLabel}
+                </span>
+            </div>
 
             {/* Savings Section */}
             <div className="mb-10">

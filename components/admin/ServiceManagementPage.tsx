@@ -41,6 +41,12 @@ const ServiceManagementPage: React.FC = () => {
     // Estados para filtros
     const [searchTerm, setSearchTerm] = useState('');
     const [typeFilter, setTypeFilter] = useState<ServiceType | '' | 'TODOS'>('TODOS');
+    const [monthOnly, setMonthOnly] = useState(true);
+
+    // Current month boundaries
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
 
     // Estados para selección múltiple
     const [selectedServiceIds, setSelectedServiceIds] = useState<Set<string>>(new Set());
@@ -82,9 +88,17 @@ const ServiceManagementPage: React.FC = () => {
         return services.filter(service => {
             const matchesSearch = service.userName.toLowerCase().includes(searchTerm.toLowerCase());
             const matchesType = typeFilter === 'TODOS' || service.tipoDeServicio === typeFilter;
-            return matchesSearch && matchesType;
+            
+            // Date filter for current month
+            let matchesDate = true;
+            if (monthOnly) {
+                const d = service.fechaSolicitud.toDate();
+                matchesDate = d >= startOfMonth && d <= endOfMonth;
+            }
+
+            return matchesSearch && matchesType && matchesDate;
         });
-    }, [services, searchTerm, typeFilter]);
+    }, [services, searchTerm, typeFilter, monthOnly]);
 
     // Manejo de selecciones
     const handleSelectService = (id: string) => {
@@ -158,10 +172,20 @@ const ServiceManagementPage: React.FC = () => {
                         ))}
                     </select>
                     <button
-                        onClick={() => { setSearchTerm(''); setTypeFilter('TODOS'); }}
+                        onClick={() => { setSearchTerm(''); setTypeFilter('TODOS'); setMonthOnly(true); }}
                         className="w-full sm:w-auto bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-md transition-colors"
                     >
                         Limpiar Filtros
+                    </button>
+                    <button
+                        onClick={() => setMonthOnly(!monthOnly)}
+                        className={`w-full sm:w-auto py-2 px-4 rounded-md text-sm font-medium transition-colors ${
+                            monthOnly 
+                                ? 'bg-indigo-600 text-white hover:bg-indigo-700' 
+                                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                        }`}
+                    >
+                        {monthOnly ? 'Solo este mes' : 'Todos los meses'}
                     </button>
                 </div>
                 

@@ -7,13 +7,20 @@ export const SavingsReportPage: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [statusFilter, setStatusFilter] = useState('ALL');
     const [searchTerm, setSearchTerm] = useState('');
+    const [monthOnly, setMonthOnly] = useState(true);
+
+    // Current month boundaries
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+    const monthLabel = now.toLocaleDateString('es-EC', { month: 'long', year: 'numeric' });
 
     useEffect(() => {
         (async () => {
             setLoading(true);
             try {
                 const data = await getAllProgrammedSavings();
-                // Sort by creation date descending (assuming numeroCartola proxy for age or use fechaCreacion if consistent)
+                // Sort by creation date descending
                 setSavings(data.sort((a, b) => {
                      const dateA = a.fechaCreacion && a.fechaCreacion.toMillis ? a.fechaCreacion.toMillis() : 0;
                      const dateB = b.fechaCreacion && b.fechaCreacion.toMillis ? b.fechaCreacion.toMillis() : 0;
@@ -34,14 +41,31 @@ export const SavingsReportPage: React.FC = () => {
             plan.numeroCartola.toString().includes(searchTerm) ||
             (plan.advisorName || '').toLowerCase().includes(searchTerm.toLowerCase());
         
-        return matchesStatus && matchesSearch;
+        // Date filter for current month
+        let matchesDate = true;
+        if (monthOnly && plan.fechaCreacion) {
+            const d = plan.fechaCreacion.toMillis 
+                ? new Date(plan.fechaCreacion.toMillis()) 
+                : new Date(plan.fechaCreacion);
+            matchesDate = d >= startOfMonth && d <= endOfMonth;
+        }
+
+        return matchesStatus && matchesSearch && matchesDate;
     });
 
     if (loading) return <div className="p-8 text-center text-gray-500">Cargando reporte de ahorros...</div>;
 
     return (
         <div className="p-6 max-w-7xl mx-auto">
-            <h1 className="text-3xl font-bold text-gray-800 mb-6">Reporte de Ahorros Programados</h1>
+            <div className="flex items-center justify-between mb-6">
+                <h1 className="text-3xl font-bold text-gray-800">Reporte de Ahorros Programados</h1>
+                {monthOnly && (
+                    <span className="bg-indigo-100 text-indigo-800 px-3 py-1 rounded-full text-sm font-medium capitalize">
+                        <i className="fas fa-calendar-alt mr-1"></i>
+                        {monthLabel}
+                    </span>
+                )}
+            </div>
             
             <div className="flex flex-col md:flex-row gap-4 mb-6 bg-white p-4 rounded-lg shadow-sm border border-gray-100">
                 <input 
@@ -62,6 +86,16 @@ export const SavingsReportPage: React.FC = () => {
                     <option value={ProgrammedSavingStatus.COMPLETADO}>Completado</option>
                     <option value={ProgrammedSavingStatus.CANCELADO}>Cancelado</option>
                 </select>
+                <button
+                    onClick={() => setMonthOnly(!monthOnly)}
+                    className={`px-4 py-2 rounded text-sm font-medium transition-colors whitespace-nowrap ${
+                        monthOnly 
+                            ? 'bg-indigo-600 text-white hover:bg-indigo-700' 
+                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    }`}
+                >
+                    {monthOnly ? 'Solo este mes' : 'Todos los meses'}
+                </button>
             </div>
 
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
